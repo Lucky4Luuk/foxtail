@@ -1,0 +1,2 @@
+[workspace]
+members = ["foxtail", "foxtail_demo"]
