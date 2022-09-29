@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use glow::*;
 
 pub struct Mesh {
@@ -6,11 +7,17 @@ pub struct Mesh {
     vao: NativeVertexArray,
     vert_count: i32,
     gl: Arc<Context>,
+    shader_bound: Arc<AtomicBool>,
 }
 
 impl super::Drawable for Mesh {
+    /// Panics if no shader is bound!
     fn draw(&self) -> Result<(), super::RenderError> {
+        if self.shader_bound.load(Ordering::Acquire) != true {
+            panic!("No shader bound! Use `shader.while_bound` or similar!");
+        }
         unsafe {
+            // self.gl.bind_buffer(ARRAY_BUFFER, Some(self.vbo));
             self.gl.bind_vertex_array(Some(self.vao));
             self.gl.draw_arrays(TRIANGLE_FAN, 0, self.vert_count);
             self.gl.bind_vertex_array(None);
@@ -31,11 +38,12 @@ impl Drop for Mesh {
 impl Mesh {
     pub fn quad(renderer: &super::Renderer) -> Self {
         unsafe {
-            let quad_vertices: [f32; 8] = [
-                -1.0,-1.0,
-                 1.0,-1.0,
-                 1.0, 1.0,
-                -1.0, 1.0,
+            let quad_vertices: [f32; 32] = [
+                // RGB         // Color     // UV
+                -1.0,-1.0,0.0, 1.0,1.0,1.0, 0.0,0.0,
+                 1.0,-1.0,0.0, 1.0,1.0,1.0, 1.0,0.0,
+                 1.0, 1.0,0.0, 1.0,1.0,1.0, 1.0,1.0,
+                -1.0, 1.0,0.0, 1.0,1.0,1.0, 0.0,1.0,
             ];
             let quad_vertices_u8: &[u8] = core::slice::from_raw_parts(
                 quad_vertices.as_ptr() as *const u8,
@@ -52,7 +60,11 @@ impl Mesh {
             let vao = gl.create_vertex_array().expect("Failed to create VAO!");
             gl.bind_vertex_array(Some(vao));
             gl.enable_vertex_attrib_array(0);
-            gl.vertex_attrib_pointer_f32(0, 2, FLOAT, false, (2 * core::mem::size_of::<f32>()) as i32, 0);
+            gl.vertex_attrib_pointer_f32(0, 3, FLOAT, false, (8 * core::mem::size_of::<f32>()) as i32, 0);
+            gl.enable_vertex_attrib_array(1);
+            gl.vertex_attrib_pointer_f32(1, 3, FLOAT, false, (8 * core::mem::size_of::<f32>()) as i32, (3 * core::mem::size_of::<f32>()) as i32);
+            gl.enable_vertex_attrib_array(2);
+            gl.vertex_attrib_pointer_f32(2, 2, FLOAT, false, (8 * core::mem::size_of::<f32>()) as i32, (6 * core::mem::size_of::<f32>()) as i32);
 
             gl.bind_buffer(ARRAY_BUFFER, None);
             gl.bind_vertex_array(None);
@@ -62,6 +74,7 @@ impl Mesh {
                 vao: vao,
                 vert_count: 4,
                 gl: gl,
+                shader_bound: renderer.shader_bound.clone(),
             }
         }
     }

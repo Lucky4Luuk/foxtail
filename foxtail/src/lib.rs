@@ -8,11 +8,12 @@ use winit::{
     window::{WindowBuilder, Window},
 };
 
+pub mod prelude;
 pub mod rendering;
 
 pub trait App {
-    fn update(&self, ctx: &Context) {}
-    fn render(&self, ctx: &Context) {}
+    fn update(&mut self, ctx: &Context) {}
+    fn render(&mut self, ctx: &Context) {}
 }
 
 #[derive(Debug)]

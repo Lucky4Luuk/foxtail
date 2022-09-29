@@ -1,34 +1,44 @@
 #[macro_use] extern crate log;
-use foxtail::{*, rendering::*};
+use foxtail::prelude::*;
 
 const VS: &'static str = include_str!("../shaders/vs.glsl");
 const FS: &'static str = include_str!("../shaders/fs.glsl");
 
 pub struct Demo {
-    mesh: mesh::Mesh,
-    shader: shader::Shader,
+    mesh: Mesh,
+    shader: Shader,
+    framebuffer: Framebuffer,
+
+    frame_delay: usize,
 }
 
 impl Demo {
     fn new(ctx: &Context) -> Self {
         ctx.set_window_title("Foxtail demo");
         trace!("Demo created!");
-        let mesh = mesh::Mesh::quad(&ctx);
-        let shader = shader::Shader::new(&ctx, VS, FS);
+        let mesh = Mesh::quad(&ctx);
+        let shader = Shader::new(&ctx, VS, FS);
+        let fb = Framebuffer::new(&ctx);
         Self {
             mesh: mesh,
             shader: shader,
+            framebuffer: fb,
+
+            frame_delay: 256,
         }
     }
 }
 
 impl App for Demo {
-    fn update(&self, ctx: &Context) {}
-    fn render(&self, ctx: &Context) {
-        let _ = self.shader.while_bound(|| {
-            self.mesh.draw()?;
-            Ok(())
+    fn update(&mut self, ctx: &Context) {}
+    fn render(&mut self, ctx: &Context) {
+        let _ = self.framebuffer.while_bound(|| {
+            self.shader.while_bound(|| {
+                self.mesh.draw()?;
+                Ok(())
+            })
         });
+        let _ = self.framebuffer.draw();
     }
 }
 

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use winit::window::Window;
 use raw_gl_context::{GlConfig, GlContext};
@@ -14,8 +15,26 @@ pub enum RenderError {
 }
 
 pub trait Drawable {
-    /// Should only be called while a shader is bound
     fn draw(&self) -> Result<(), RenderError>;
+}
+
+const VS:       &'static str = include_str!("shaders/vs.glsl");
+const FB_FS:    &'static str = include_str!("shaders/fb_fs.glsl");
+
+pub(crate) fn gl_error(gl: &Context) {
+    // if cfg!(debug_assertions) {}
+    let err = unsafe { gl.get_error() };
+    if err == 0 { return; }
+    error!("[{}] {}!", err, match err {
+        INVALID_ENUM => "Invalid enum",
+        INVALID_VALUE => "Invalid value",
+        INVALID_OPERATION => "Invalid operation",
+        STACK_OVERFLOW => "Stack overflow",
+        STACK_UNDERFLOW => "Stack underflow",
+        OUT_OF_MEMORY => "Out of memory",
+        INVALID_FRAMEBUFFER_OPERATION => "Invalid framebuffer operation",
+        _ => "Unknown OpenGL error",
+    });
 }
 
 pub struct Renderer {
@@ -23,6 +42,9 @@ pub struct Renderer {
     pub(crate) context: GlContext,
     pub(crate) is_context_current: bool,
     pub(crate) gl: Arc<Context>,
+    pub(crate) shader_bound: Arc<AtomicBool>,
+
+    pub(crate) default_fb_shader: Arc<shader::Shader>,
 }
 
 impl Renderer {
@@ -37,12 +59,18 @@ impl Renderer {
             let gl = Context::from_loader_function(|symbol| context.get_proc_address(symbol) as *const _);
             Arc::new(gl)
         };
+        let shader_bound = Arc::new(AtomicBool::new(false));
+
+        let default_fb_shader = shader::Shader::new_from_gl(gl.clone(), shader_bound.clone(), VS, FB_FS);
 
         Self {
             size: size,
             context: context,
             is_context_current: true,
             gl: gl,
+            shader_bound: shader_bound,
+
+            default_fb_shader: Arc::new(default_fb_shader),
         }
     }
 
