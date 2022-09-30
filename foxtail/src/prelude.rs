@@ -6,3 +6,5 @@ pub use crate::rendering::{
     shader::*,
     render_pass::*,
 };
+
+pub use winit::event::WindowEvent;

@@ -11,6 +11,7 @@ pub mod prelude;
 pub mod rendering;
 
 pub trait App {
+    fn event(&mut self, event: &WindowEvent) -> bool { false }
     fn update(&mut self, ctx: &Context) {}
     fn render(&mut self, ctx: &Context) {}
     fn on_resize(&mut self, size: (i32, i32)) {}
@@ -51,7 +52,7 @@ impl<A: App> State<A> {
 
     // TODO: Actually process events here
     fn event(&mut self, event: &WindowEvent) -> bool {
-        false
+        self.app.event(event)
     }
 
     fn update(&mut self) {
