@@ -74,6 +74,16 @@ impl Renderer {
         }
     }
 
+    pub(crate) fn gl_make_current(&mut self) {
+        self.context.make_current();
+        self.is_context_current = true;
+    }
+
+    pub(crate) fn gl_make_not_current(&mut self) {
+        self.context.make_not_current();
+        self.is_context_current = false;
+    }
+
     pub fn size(&self) -> winit::dpi::PhysicalSize<u32> {
         self.size
     }
@@ -81,17 +91,14 @@ impl Renderer {
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
-            self.context.make_current();
             unsafe {
                 self.gl.viewport(0,0, new_size.width as i32, new_size.height as i32);
             }
-            self.context.make_not_current();
         }
     }
 
     pub fn start_frame(&mut self) -> Result<(), RenderError> {
-        self.context.make_current();
-        self.is_context_current = true;
+        self.gl_make_current();
         unsafe {
             self.gl.clear_color(0.2,0.2,0.2,1.0);
             self.gl.clear(COLOR_BUFFER_BIT);
@@ -101,8 +108,7 @@ impl Renderer {
 
     pub fn end_frame(&mut self) -> Result<(), RenderError> {
         self.context.swap_buffers();
-        self.context.make_not_current();
-        self.is_context_current = false;
+        self.gl_make_not_current();
         Ok(())
     }
 }

@@ -33,12 +33,19 @@ impl App for Demo {
     fn update(&mut self, ctx: &Context) {}
     fn render(&mut self, ctx: &Context) {
         let _ = self.framebuffer.while_bound(|| {
+            self.framebuffer.clear();
             self.shader.while_bound(|| {
                 self.mesh.draw()?;
                 Ok(())
             })
         });
+        let _ = self.framebuffer.while_bound(|| {
+            self.framebuffer.draw()
+        });
         let _ = self.framebuffer.draw();
+    }
+    fn on_resize(&mut self, size: (i32, i32)) {
+        self.framebuffer.resize(size);
     }
 }
 

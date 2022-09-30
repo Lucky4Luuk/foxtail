@@ -14,6 +14,7 @@ pub mod rendering;
 pub trait App {
     fn update(&mut self, ctx: &Context) {}
     fn render(&mut self, ctx: &Context) {}
+    fn on_resize(&mut self, size: (i32, i32)) {}
 }
 
 #[derive(Debug)]
@@ -43,7 +44,10 @@ impl<A: App> State<A> {
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        self.renderer.gl_make_current();
         self.renderer.resize(new_size);
+        self.app.on_resize((new_size.width as i32, new_size.height as i32));
+        self.renderer.gl_make_not_current();
     }
 
     // TODO: Actually process events here
@@ -53,15 +57,13 @@ impl<A: App> State<A> {
 
     fn update(&mut self) {
         if !self.renderer.is_context_current {
-            self.renderer.context.make_current();
-            self.renderer.is_context_current = true;
+            self.renderer.gl_make_current();
         }
         let ctx = Context::new(&self.renderer, &self.event_loop);
         self.app.update(&ctx);
         drop(ctx);
         if self.renderer.is_context_current {
-            self.renderer.context.make_not_current();
-            self.renderer.is_context_current = false;
+            self.renderer.gl_make_not_current();
         }
     }
 
