@@ -1,5 +1,4 @@
 #[macro_use] extern crate log;
-#[macro_use] extern crate sensible_env_logger;
 
 use std::ops::Deref;
 use winit::{
@@ -108,7 +107,7 @@ impl<'c> Deref for Context<'c> {
 }
 
 pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
-    init_timed_short!();
+    pretty_env_logger::formatted_timed_builder().filter_level(log::LevelFilter::max()).init();
 
     let event_loop = EventLoopBuilder::<EngineEvent>::with_user_event().build();
     let window = WindowBuilder::new().build(&event_loop).unwrap();

@@ -31,6 +31,7 @@ impl Demo {
 
 impl App for Demo {
     fn update(&mut self, ctx: &Context) {}
+
     fn render(&mut self, ctx: &Context) {
         let _ = self.framebuffer.while_bound(|| {
             self.framebuffer.clear();
@@ -44,6 +45,7 @@ impl App for Demo {
         });
         let _ = self.framebuffer.draw();
     }
+
     fn on_resize(&mut self, size: (i32, i32)) {
         self.framebuffer.resize(size);
     }
