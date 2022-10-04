@@ -8,6 +8,7 @@ use glow::*;
 pub mod render_pass;
 pub mod mesh;
 pub mod shader;
+pub mod buffer;
 
 #[derive(Debug)]
 pub enum RenderError {
