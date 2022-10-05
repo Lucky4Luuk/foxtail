@@ -13,6 +13,7 @@ impl<T> FixedSizeBuffer<T> {
     pub fn new(renderer: &super::Renderer, count: usize) -> Self {
         let gl = renderer.gl.clone();
         let size = std::mem::size_of::<T>() * count;
+        trace!("Allocating buffer with size: {}b/{}kb/{}mb", size, size/1024, size/1024/1024);
         let buf = unsafe {
             let b = gl.create_buffer().expect("Failed to create buffer!");
             gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(b));
@@ -27,6 +28,10 @@ impl<T> FixedSizeBuffer<T> {
             bound_loc: None,
             _phantom: std::marker::PhantomData,
         }
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
     }
 
     pub fn bind(&mut self, location: u32) {
