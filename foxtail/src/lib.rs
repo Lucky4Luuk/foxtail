@@ -1,19 +1,21 @@
 #[macro_use] extern crate log;
 
 use std::ops::Deref;
+use std::sync::Arc;
 use winit::{
     event::*,
-    event_loop::{ControlFlow, EventLoopProxy, EventLoopBuilder},
+    event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopBuilder},
     window::{WindowBuilder, Window},
 };
+use glow::HasContext;
 
 pub mod prelude;
 pub mod rendering;
 
 pub trait App {
     fn event(&mut self, event: &WindowEvent) -> bool { false }
-    fn update(&mut self, ctx: &Context) {}
-    fn render(&mut self, ctx: &Context) {}
+    fn update(&mut self, ctx: &mut Context) {}
+    fn render(&mut self, ctx: &mut Context) {}
     fn on_resize(&mut self, size: (i32, i32)) {}
 }
 
@@ -25,21 +27,26 @@ pub enum EngineEvent {
 struct State<A: App> {
     app: A,
     renderer: rendering::Renderer,
+    fox_ui: foxtail_ui::FoxUi,
     event_loop: EventLoopProxy<EngineEvent>,
 }
 
 impl<A: App> State<A> {
-    fn new<F: Fn(&Context) -> A>(window: &Window, event_loop: EventLoopProxy<EngineEvent>, f: F) -> Self {
-        let renderer = rendering::Renderer::new(window);
+    fn new<F: Fn(&mut Context) -> A>(window: Arc<Window>, event_loop: &EventLoop<EngineEvent>, f: F) -> Self {
+        let renderer = rendering::Renderer::new(&window);
 
-        let ctx = Context::new(&renderer, &event_loop);
-        let app = f(&ctx);
+        let mut fox_ui = foxtail_ui::FoxUi::new(event_loop, renderer.gl.clone(), window.clone());
+        let event_loop_proxy = event_loop.create_proxy();
+
+        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui);
+        let app = f(&mut ctx);
         drop(ctx);
 
         Self {
             app: app,
             renderer: renderer,
-            event_loop: event_loop,
+            fox_ui: fox_ui,
+            event_loop: event_loop_proxy,
         }
     }
 
@@ -59,8 +66,8 @@ impl<A: App> State<A> {
         if !self.renderer.is_context_current {
             self.renderer.gl_make_current();
         }
-        let ctx = Context::new(&self.renderer, &self.event_loop);
-        self.app.update(&ctx);
+        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui);
+        self.app.update(&mut ctx);
         drop(ctx);
         if self.renderer.is_context_current {
             self.renderer.gl_make_not_current();
@@ -73,8 +80,11 @@ impl<A: App> State<A> {
 
     fn render(&mut self) -> Result<(), rendering::RenderError> {
         self.renderer.start_frame()?;
-        let ctx = Context::new(&self.renderer, &self.event_loop);
-        self.app.render(&ctx);
+        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui);
+        self.app.render(&mut ctx);
+        unsafe {
+            self.renderer.gl.disable(glow::FRAMEBUFFER_SRGB);
+        }
         self.renderer.end_frame()?;
         Ok(())
     }
@@ -85,18 +95,28 @@ impl<A: App> State<A> {
 pub struct Context<'c> {
     renderer: &'c rendering::Renderer,
     event_loop: &'c EventLoopProxy<EngineEvent>,
+    fox_ui: &'c mut foxtail_ui::FoxUi,
 }
 
 impl<'c> Context<'c> {
-    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>) -> Self {
+    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c mut foxtail_ui::FoxUi) -> Self {
         Self {
             renderer: renderer,
             event_loop: event_loop,
+            fox_ui: fox_ui,
         }
     }
 
     pub fn set_window_title<S: Into<String>>(&self, name: S) {
         self.event_loop.send_event(EngineEvent::SetTitle(name.into())).map_err(|e| error!("Event loop proxy error {}", e)).expect("The event loop closed!");
+    }
+
+    pub fn event_loop(&self) -> &EventLoopProxy<EngineEvent> {
+        &self.event_loop
+    }
+
+    pub fn draw_ui<F: FnMut(&foxtail_ui::EguiContext)>(&mut self, f: F) {
+        self.fox_ui.draw(f);
     }
 }
 
@@ -107,13 +127,13 @@ impl<'c> Deref for Context<'c> {
     }
 }
 
-pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
+pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
     pretty_env_logger::formatted_timed_builder().filter_level(log::LevelFilter::max()).init();
 
     let event_loop = EventLoopBuilder::<EngineEvent>::with_user_event().build();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = Arc::new(WindowBuilder::new().with_inner_size(winit::dpi::LogicalSize::<u32>::new(1280u32, 720u32)).build(&event_loop).unwrap());
 
-    let mut state = State::new(&window, event_loop.create_proxy(), f);
+    let mut state = State::new(window.clone(), &event_loop, f);
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent { ref event, window_id } if window_id == window.id() => if !state.event(event) {

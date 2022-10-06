@@ -42,7 +42,7 @@ pub struct Renderer {
     size: winit::dpi::PhysicalSize<u32>,
     pub(crate) context: GlContext,
     pub(crate) is_context_current: bool,
-    pub(crate) gl: Arc<Context>,
+    pub gl: Arc<Context>,
     pub(crate) shader_bound: Arc<AtomicBool>,
 
     pub(crate) default_fb_shader: Arc<shader::Shader>,
@@ -95,6 +95,12 @@ impl Renderer {
             unsafe {
                 self.gl.viewport(0,0, new_size.width as i32, new_size.height as i32);
             }
+        }
+    }
+
+    pub fn fence(&self) {
+        unsafe {
+            self.gl.memory_barrier(glow::ALL_BARRIER_BITS);
         }
     }
 

@@ -9,3 +9,5 @@ log = "0.4"
 winit = "0.27"
 raw-gl-context = "0.1.2"
 glow = "0.11.2"
+
+foxtail_ui = { path = "../foxtail_ui" }

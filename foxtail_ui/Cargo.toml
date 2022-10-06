@@ -1,0 +1,13 @@
+[package]
+name = "foxtail_ui"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+winit = "0.27"
+glow = "0.11.2"
+egui = "0.19.0"
+egui_glow = { version = "0.19.0", features = ["winit"] }

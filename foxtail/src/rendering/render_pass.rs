@@ -41,7 +41,6 @@ impl Drop for Framebuffer {
 impl Framebuffer {
     pub fn with_resolution(renderer: &super::Renderer, size: (i32, i32)) -> Self {
         let gl = renderer.gl.clone();
-        trace!("GL cloned!");
         let fbo = unsafe { gl.create_framebuffer().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer!") };
         let (tex, rbo) = unsafe {
             gl.bind_framebuffer(FRAMEBUFFER, Some(fbo));

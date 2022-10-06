@@ -30,6 +30,21 @@ impl<T> FixedSizeBuffer<T> {
         }
     }
 
+    pub fn write(&self, offset: usize, data: &[T]) {
+        if offset + data.len() > self.size {
+            panic!("Cannot write past buffer bounds!");
+        }
+        unsafe {
+            let data_raw: &[u8] = std::slice::from_raw_parts(
+                data.as_ptr() as *const u8,
+                data.len() * std::mem::size_of::<T>(),
+            );
+            self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(self.buf));
+            self.gl.buffer_sub_data_u8_slice(glow::SHADER_STORAGE_BUFFER, offset as i32, data_raw);
+            self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None);
+        }
+    }
+
     pub fn size(&self) -> usize {
         self.size
     }
