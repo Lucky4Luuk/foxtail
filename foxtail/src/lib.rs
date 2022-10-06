@@ -149,7 +149,6 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
             }
         },
         Event::RedrawRequested(window_id) if window_id == window.id() => {
-            state.update();
             match state.render() {
                 Ok(_) => {}
                 Err(e) => eprintln!("{:?}", e),
