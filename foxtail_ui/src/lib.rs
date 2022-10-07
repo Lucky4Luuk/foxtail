@@ -3,6 +3,7 @@ use std::sync::Arc;
 use egui_glow::winit::EguiGlow;
 use winit::event_loop::EventLoop;
 use winit::window::Window;
+use winit::event::WindowEvent;
 use glow::Context;
 
 pub use egui::Context as EguiContext;
@@ -24,5 +25,9 @@ impl FoxUi {
     pub fn draw<F: FnMut(&egui::Context)>(&mut self, f: F) {
         self.egui.run(&self.window, f);
         self.egui.paint(&mut self.window);
+    }
+
+    pub fn event(&mut self, event: &WindowEvent) -> bool {
+        self.egui.on_event(event)
     }
 }

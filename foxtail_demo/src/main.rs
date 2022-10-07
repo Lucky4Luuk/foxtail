@@ -30,12 +30,12 @@ impl Demo {
 }
 
 impl App for Demo {
-    fn update(&mut self, ctx: &Context) {}
+    fn update(&mut self, ctx: &mut Context) {}
 
-    fn render(&mut self, ctx: &Context) {
+    fn render(&mut self, ctx: &mut Context) {
         let _ = self.framebuffer.while_bound(|| {
             self.framebuffer.clear();
-            self.shader.while_bound(|| {
+            self.shader.while_bound(|_| {
                 self.mesh.draw()?;
                 Ok(())
             })

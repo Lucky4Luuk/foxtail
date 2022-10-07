@@ -8,4 +8,5 @@ pub use crate::rendering::{
     buffer::*,
 };
 
-pub use winit::event::WindowEvent;
+pub use winit_input_helper::WinitInputHelper as Input;
+pub use winit::event::VirtualKeyCode as KeyCode;

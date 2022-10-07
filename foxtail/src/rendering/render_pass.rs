@@ -17,7 +17,7 @@ impl super::Drawable for Framebuffer {
         if self.shader_bound.load(Ordering::Acquire) {
             self.mesh.draw()?;
         } else {
-            self.default_fb_shader.while_bound(|| {
+            self.default_fb_shader.while_bound(|_| {
                 self.bind_tex();
                 self.mesh.draw()?;
                 self.unbind_tex();

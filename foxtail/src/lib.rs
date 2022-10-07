@@ -7,13 +7,14 @@ use winit::{
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopBuilder},
     window::{WindowBuilder, Window},
 };
+use winit_input_helper::WinitInputHelper;
 use glow::HasContext;
 
 pub mod prelude;
 pub mod rendering;
 
 pub trait App {
-    fn event(&mut self, event: &WindowEvent) -> bool { false }
+    fn event(&mut self, input: &prelude::Input) {}
     fn update(&mut self, ctx: &mut Context) {}
     fn render(&mut self, ctx: &mut Context) {}
     fn on_resize(&mut self, size: (i32, i32)) {}
@@ -55,11 +56,6 @@ impl<A: App> State<A> {
         self.renderer.resize(new_size);
         self.app.on_resize((new_size.width as i32, new_size.height as i32));
         self.renderer.gl_make_not_current();
-    }
-
-    // TODO: Actually process events here
-    fn event(&mut self, event: &WindowEvent) -> bool {
-        self.app.event(event)
     }
 
     fn update(&mut self) {
@@ -135,36 +131,23 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
 
     let mut state = State::new(window.clone(), &event_loop, f);
 
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent { ref event, window_id } if window_id == window.id() => if !state.event(event) {
-            match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(physical_size) => {
-                    state.resize(*physical_size);
-                },
-                WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                    state.resize(**new_inner_size);
-                },
-                _ => {}
+    let mut input = WinitInputHelper::new();
+
+    event_loop.run(move |event, _, control_flow| {
+        if let Event::WindowEvent { ref event, .. } = event {
+            state.fox_ui.event(&event);
+        }
+        if input.update(&event) {
+            if input.quit() { *control_flow = ControlFlow::Exit; }
+            if let Some(size) = input.window_resized() {
+                state.resize(size);
             }
-        },
-        Event::RedrawRequested(window_id) if window_id == window.id() => {
-            match state.render() {
-                Ok(_) => {}
-                Err(e) => eprintln!("{:?}", e),
-            }
-        },
-        Event::UserEvent(engine_event) => {
-            match engine_event {
-                EngineEvent::SetTitle(title) => window.set_title(&title),
-            }
-        },
-        Event::MainEventsCleared => {
+            state.app.event(&input);
             state.update();
-            // RedrawRequested will only trigger once, unless we manually
-            // request it.
-            window.request_redraw();
-        },
-        _ => {}
+            if let Err(e) = state.render() {
+                error!("Render error occured!");
+                panic!("{:?}", e);
+            }
+        }
     });
 }

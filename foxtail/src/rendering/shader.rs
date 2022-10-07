@@ -13,6 +13,48 @@ unsafe fn compile_stage(gl: &Context, stage: u32, src: &str) -> NativeShader {
     shader
 }
 
+pub struct UniformInterface<'u> {
+    bound_shader: &'u NativeProgram,
+    gl: Arc<Context>,
+}
+
+impl<'u> UniformInterface<'u> {
+    pub fn set_f32(&self, name: &str, val: f32) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_1_f32(loc.as_ref(), val); }
+    }
+
+    pub fn set_vec2(&self, name: &str, val: [f32; 2]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_2_f32(loc.as_ref(), val[0], val[1]); }
+    }
+
+    pub fn set_vec3(&self, name: &str, val: [f32; 3]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_3_f32(loc.as_ref(), val[0], val[1], val[2]); }
+    }
+
+    pub fn set_vec4(&self, name: &str, val: [f32; 4]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_4_f32(loc.as_ref(), val[0], val[1], val[2], val[3]); }
+    }
+
+    pub fn set_mat2(&self, name: &str, val: [f32; 2*2]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_matrix_2_f32_slice(loc.as_ref(), false, &val); }
+    }
+
+    pub fn set_mat3(&self, name: &str, val: [f32; 3*3]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_matrix_3_f32_slice(loc.as_ref(), false, &val); }
+    }
+
+    pub fn set_mat4(&self, name: &str, val: [f32; 4*4]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_matrix_4_f32_slice(loc.as_ref(), false, &val); }
+    }
+}
+
 pub struct Shader {
     program: NativeProgram,
     gl: Arc<Context>,
@@ -76,9 +118,13 @@ impl Shader {
     }
 
     /// Runs a closure while the shader is bound
-    pub fn while_bound<F: FnOnce() -> Result<(), super::RenderError>>(&self, f: F) -> Result<(), super::RenderError> {
+    pub fn while_bound<F: FnOnce(UniformInterface) -> Result<(), super::RenderError>>(&self, f: F) -> Result<(), super::RenderError> {
         self.bind();
-        f()?;
+        let uni = UniformInterface {
+            bound_shader: &self.program,
+            gl: self.gl.clone(),
+        };
+        f(uni)?;
         self.unbind();
         Ok(())
     }
