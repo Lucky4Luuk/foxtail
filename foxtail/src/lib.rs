@@ -137,6 +137,12 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
         if let Event::WindowEvent { ref event, .. } = event {
             state.fox_ui.event(&event);
         }
+        if let Event::UserEvent(ref ue) = event {
+            match ue {
+                EngineEvent::SetTitle(title) => window.set_title(title),
+                _ => {},
+            }
+        }
         if input.update(&event) {
             if input.quit() { *control_flow = ControlFlow::Exit; }
             if let Some(size) = input.window_resized() {
