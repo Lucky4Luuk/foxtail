@@ -14,10 +14,10 @@ pub mod prelude;
 pub mod rendering;
 
 pub trait App {
-    fn event(&mut self, input: &prelude::Input) {}
-    fn update(&mut self, ctx: &mut Context) {}
-    fn render(&mut self, ctx: &mut Context) {}
-    fn on_resize(&mut self, size: (i32, i32)) {}
+    fn event(&mut self, _input: &prelude::Input) {}
+    fn update(&mut self, _ctx: &mut Context) {}
+    fn render(&mut self, _ctx: &mut Context) {}
+    fn on_resize(&mut self, _size: (i32, i32)) {}
 }
 
 #[derive(Debug)]
@@ -59,6 +59,7 @@ impl<A: App> State<A> {
     }
 
     fn update(&mut self) {
+        puffin::profile_function!();
         if !self.renderer.is_context_current {
             self.renderer.gl_make_current();
         }
@@ -70,11 +71,8 @@ impl<A: App> State<A> {
         }
     }
 
-    fn size(&self) -> winit::dpi::PhysicalSize<u32> {
-        self.renderer.size()
-    }
-
     fn render(&mut self) -> Result<(), rendering::RenderError> {
+        puffin::profile_function!();
         self.renderer.start_frame()?;
         let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui);
         self.app.render(&mut ctx);
@@ -134,13 +132,13 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
     let mut input = WinitInputHelper::new();
 
     event_loop.run(move |event, _, control_flow| {
+        puffin::GlobalProfiler::lock().new_frame();
         if let Event::WindowEvent { ref event, .. } = event {
             state.fox_ui.event(&event);
         }
         if let Event::UserEvent(ref ue) = event {
             match ue {
                 EngineEvent::SetTitle(title) => window.set_title(title),
-                _ => {},
             }
         }
         if input.update(&event) {

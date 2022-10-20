@@ -13,6 +13,7 @@ pub struct Mesh {
 impl super::Drawable for Mesh {
     /// Panics if no shader is bound!
     fn draw(&self) -> Result<(), super::RenderError> {
+        puffin::profile_function!();
         if self.shader_bound.load(Ordering::Acquire) != true {
             panic!("No shader bound! Use `shader.while_bound` or similar!");
         }

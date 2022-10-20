@@ -8,8 +8,6 @@ pub struct Demo {
     mesh: Mesh,
     shader: Shader,
     framebuffer: Framebuffer,
-
-    frame_delay: usize,
 }
 
 impl Demo {
@@ -23,16 +21,14 @@ impl Demo {
             mesh: mesh,
             shader: shader,
             framebuffer: fb,
-
-            frame_delay: 256,
         }
     }
 }
 
 impl App for Demo {
-    fn update(&mut self, ctx: &mut Context) {}
+    fn update(&mut self, _ctx: &mut Context) {}
 
-    fn render(&mut self, ctx: &mut Context) {
+    fn render(&mut self, _ctx: &mut Context) {
         let _ = self.framebuffer.while_bound(|| {
             self.framebuffer.clear();
             self.shader.while_bound(|_| {
