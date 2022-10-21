@@ -105,6 +105,7 @@ impl Renderer {
     }
 
     pub fn start_frame(&mut self) -> Result<(), RenderError> {
+        puffin::profile_function!();
         self.gl_make_current();
         unsafe {
             self.gl.clear_color(0.2,0.2,0.2,1.0);
@@ -114,6 +115,7 @@ impl Renderer {
     }
 
     pub fn end_frame(&mut self) -> Result<(), RenderError> {
+        puffin::profile_function!();
         self.context.swap_buffers();
         self.gl_make_not_current();
         Ok(())
