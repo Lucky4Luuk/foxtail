@@ -130,11 +130,16 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
     let mut state = State::new(window.clone(), &event_loop, f);
 
     let mut input = WinitInputHelper::new();
+    let mut input_captured = false;
 
     event_loop.run(move |event, _, control_flow| {
         puffin::GlobalProfiler::lock().new_frame();
         if let Event::WindowEvent { ref event, .. } = event {
-            state.fox_ui.event(&event);
+            if state.fox_ui.event(&event) {
+                input_captured = true;
+            } else {
+                input_captured = false;
+            }
         }
         if let Event::UserEvent(ref ue) = event {
             match ue {
@@ -146,7 +151,7 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
             if let Some(size) = input.window_resized() {
                 state.resize(size);
             }
-            state.app.event(&input);
+            if input_captured == false { state.app.event(&input); }
             state.update();
             if let Err(e) = state.render() {
                 error!("Render error occured!");
