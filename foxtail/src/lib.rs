@@ -130,15 +130,13 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
     let mut state = State::new(window.clone(), &event_loop, f);
 
     let mut input = WinitInputHelper::new();
-    let mut input_captured = false;
 
     event_loop.run(move |event, _, control_flow| {
         puffin::GlobalProfiler::lock().new_frame();
+        let mut event_consumed = false;
         if let Event::WindowEvent { ref event, .. } = event {
             if state.fox_ui.event(&event) {
-                input_captured = true;
-            } else {
-                input_captured = false;
+                event_consumed = true;
             }
         }
         if let Event::UserEvent(ref ue) = event {
@@ -146,16 +144,18 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
                 EngineEvent::SetTitle(title) => window.set_title(title),
             }
         }
-        if input.update(&event) {
-            if input.quit() { *control_flow = ControlFlow::Exit; }
-            if let Some(size) = input.window_resized() {
-                state.resize(size);
-            }
-            if input_captured == false { state.app.event(&input); }
-            state.update();
-            if let Err(e) = state.render() {
-                error!("Render error occured!");
-                panic!("{:?}", e);
+        if !event_consumed {
+            if input.update(&event) {
+                if input.quit() { *control_flow = ControlFlow::Exit; }
+                if let Some(size) = input.window_resized() {
+                    state.resize(size);
+                }
+                state.app.event(&input);
+                state.update();
+                if let Err(e) = state.render() {
+                    error!("Render error occured!");
+                    panic!("{:?}", e);
+                }
             }
         }
     });
