@@ -40,7 +40,7 @@ impl Mesh {
     pub fn quad(renderer: &super::Renderer) -> Self {
         unsafe {
             let quad_vertices: [f32; 32] = [
-                // RGB         // Color     // UV
+                // Position    // Color     // UV
                 -1.0,-1.0,0.0, 1.0,1.0,1.0, 0.0,0.0,
                  1.0,-1.0,0.0, 1.0,1.0,1.0, 1.0,0.0,
                  1.0, 1.0,0.0, 1.0,1.0,1.0, 1.0,1.0,
