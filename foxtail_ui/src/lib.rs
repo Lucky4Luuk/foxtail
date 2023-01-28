@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use egui_glow::winit::EguiGlow;
+use egui_glow::ShaderVersion;
 use winit::event_loop::EventLoop;
 use winit::window::Window;
 use winit::event::WindowEvent;
@@ -15,7 +16,7 @@ pub struct FoxUi {
 
 impl FoxUi {
     pub fn new<T>(event_loop: &EventLoop<T>, gl: Arc<Context>, window: Arc<Window>) -> Self {
-        let egui = EguiGlow::new(&event_loop, gl);
+        let egui = EguiGlow::new(&event_loop, gl, Some(ShaderVersion::Gl140));
         Self {
             egui: egui,
             window: window,
@@ -28,6 +29,6 @@ impl FoxUi {
     }
 
     pub fn event(&mut self, event: &WindowEvent) -> bool {
-        self.egui.on_event(event)
+        self.egui.on_event(event).consumed
     }
 }
