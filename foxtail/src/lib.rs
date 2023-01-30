@@ -5,7 +5,8 @@ use std::sync::Arc;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopBuilder},
-    window::{WindowBuilder, Window, Fullscreen},
+    window::{WindowBuilder, Window, Fullscreen as WinitFullscreen},
+    monitor::VideoMode,
 };
 use winit_input_helper::WinitInputHelper;
 use glow::HasContext;
@@ -21,6 +22,12 @@ pub trait App {
 }
 
 #[derive(Debug)]
+pub enum Fullscreen {
+    Borderless,
+    Exclusive(VideoMode),
+}
+
+#[derive(Debug)]
 pub enum EngineEvent {
     SetTitle(String),
     SetMaximized(bool),
@@ -33,6 +40,8 @@ struct State<A: App> {
     renderer: rendering::Renderer,
     fox_ui: foxtail_ui::FoxUi,
     event_loop: EventLoopProxy<EngineEvent>,
+
+    video_modes: Vec<VideoMode>,
 }
 
 impl<A: App> State<A> {
@@ -42,7 +51,9 @@ impl<A: App> State<A> {
         let mut fox_ui = foxtail_ui::FoxUi::new(event_loop, renderer.gl.clone(), window.clone());
         let event_loop_proxy = event_loop.create_proxy();
 
-        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui);
+        let video_modes = window.current_monitor().expect("No monitor detected!").video_modes().collect();
+
+        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &video_modes);
         let app = f(&mut ctx);
         drop(ctx);
 
@@ -51,6 +62,8 @@ impl<A: App> State<A> {
             renderer: renderer,
             fox_ui: fox_ui,
             event_loop: event_loop_proxy,
+
+            video_modes: video_modes,
         }
     }
 
@@ -66,7 +79,7 @@ impl<A: App> State<A> {
         if !self.renderer.is_context_current {
             self.renderer.gl_make_current();
         }
-        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui);
+        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui, &self.video_modes);
         self.app.update(&mut ctx);
         drop(ctx);
         if self.renderer.is_context_current {
@@ -77,7 +90,7 @@ impl<A: App> State<A> {
     fn render(&mut self) -> Result<(), rendering::RenderError> {
         puffin::profile_function!();
         self.renderer.start_frame()?;
-        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui);
+        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui, &self.video_modes);
         self.app.render(&mut ctx);
         unsafe {
             self.renderer.gl.disable(glow::FRAMEBUFFER_SRGB);
@@ -93,15 +106,23 @@ pub struct Context<'c> {
     renderer: &'c rendering::Renderer,
     event_loop: &'c EventLoopProxy<EngineEvent>,
     fox_ui: &'c mut foxtail_ui::FoxUi,
+
+    video_modes: &'c Vec<VideoMode>,
 }
 
 impl<'c> Context<'c> {
-    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c mut foxtail_ui::FoxUi) -> Self {
+    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c mut foxtail_ui::FoxUi, video_modes: &'c Vec<VideoMode>) -> Self {
         Self {
             renderer: renderer,
             event_loop: event_loop,
             fox_ui: fox_ui,
+
+            video_modes: video_modes,
         }
+    }
+
+    pub fn video_modes(&self) -> &Vec<VideoMode> {
+        self.video_modes
     }
 
     pub fn set_window_title<S: Into<String>>(&self, name: S) {
@@ -159,7 +180,16 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
                 EngineEvent::SetTitle(title) => window.set_title(title),
                 EngineEvent::SetMaximized(max) => window.set_maximized(*max),
                 EngineEvent::SetMinimized(min) => window.set_minimized(*min),
-                EngineEvent::SetFullscreen(full) => window.set_fullscreen(full.clone()),
+                EngineEvent::SetFullscreen(full) => {
+                    if let Some(fullscreen) = full {
+                        match fullscreen {
+                            Fullscreen::Borderless => window.set_fullscreen(Some(WinitFullscreen::Borderless(None))),
+                            Fullscreen::Exclusive(mode) => window.set_fullscreen(Some(WinitFullscreen::Exclusive(mode.clone()))),
+                        }
+                    } else {
+                        window.set_fullscreen(None);
+                    }
+                },
             }
         }
         if !event_consumed {
