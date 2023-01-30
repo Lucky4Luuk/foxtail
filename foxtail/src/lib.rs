@@ -5,7 +5,7 @@ use std::sync::Arc;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopBuilder},
-    window::{WindowBuilder, Window},
+    window::{WindowBuilder, Window, Fullscreen},
 };
 use winit_input_helper::WinitInputHelper;
 use glow::HasContext;
@@ -23,6 +23,9 @@ pub trait App {
 #[derive(Debug)]
 pub enum EngineEvent {
     SetTitle(String),
+    SetMaximized(bool),
+    SetMinimized(bool),
+    SetFullscreen(Option<Fullscreen>),
 }
 
 struct State<A: App> {
@@ -105,6 +108,18 @@ impl<'c> Context<'c> {
         self.event_loop.send_event(EngineEvent::SetTitle(name.into())).map_err(|e| error!("Event loop proxy error {}", e)).expect("The event loop closed!");
     }
 
+    pub fn set_maximized(&self, maximized: bool) {
+        self.event_loop.send_event(EngineEvent::SetMaximized(maximized)).map_err(|e| error!("Event loop proxy error {}", e)).expect("The event loop closed!");
+    }
+
+    pub fn set_minimized(&self, minimized: bool) {
+        self.event_loop.send_event(EngineEvent::SetMinimized(minimized)).map_err(|e| error!("Event loop proxy error {}", e)).expect("The event loop closed!");
+    }
+
+    pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
+        self.event_loop.send_event(EngineEvent::SetFullscreen(fullscreen)).map_err(|e| error!("Event loop proxy error {}", e)).expect("The event loop closed!");
+    }
+
     pub fn event_loop(&self) -> &EventLoopProxy<EngineEvent> {
         &self.event_loop
     }
@@ -142,6 +157,9 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
         if let Event::UserEvent(ref ue) = event {
             match ue {
                 EngineEvent::SetTitle(title) => window.set_title(title),
+                EngineEvent::SetMaximized(max) => window.set_maximized(*max),
+                EngineEvent::SetMinimized(min) => window.set_minimized(*min),
+                EngineEvent::SetFullscreen(full) => window.set_fullscreen(full.clone()),
             }
         }
         if !event_consumed {
