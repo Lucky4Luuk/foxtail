@@ -17,7 +17,7 @@ impl<T> FixedSizeBuffer<T> {
         let buf = unsafe {
             let b = gl.create_buffer().expect("Failed to create buffer!");
             gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(b));
-            gl.buffer_storage(glow::SHADER_STORAGE_BUFFER, size as i32, None, glow::DYNAMIC_STORAGE_BIT | glow::MAP_WRITE_BIT | glow::MAP_PERSISTENT_BIT | glow::MAP_COHERENT_BIT);
+            gl.buffer_storage(glow::SHADER_STORAGE_BUFFER, size as i32, None, glow::DYNAMIC_STORAGE_BIT | glow::MAP_WRITE_BIT);
             gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None);
             b
         };
@@ -33,18 +33,39 @@ impl<T> FixedSizeBuffer<T> {
     pub fn write(&self, offset: usize, data: &[T]) {
         let t_size = std::mem::size_of::<T>();
         let offset_raw = offset * t_size;
-        if offset_raw + data.len() * t_size > self.size {
+        if offset_raw + data.as_ref().len() * t_size > self.size {
             panic!("Cannot write past buffer bounds!");
         }
         unsafe {
             let data_raw: &[u8] = std::slice::from_raw_parts(
-                data.as_ptr() as *const u8,
-                data.len() * t_size,
+                data.as_ref().as_ptr() as *const u8,
+                data.as_ref().len() * t_size,
             );
+
             self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(self.buf));
             self.gl.buffer_sub_data_u8_slice(glow::SHADER_STORAGE_BUFFER, offset_raw as i32, data_raw);
             self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None);
         }
+    }
+
+    pub fn write_slice<'f>(&'f self, writes: impl Iterator<Item = (usize, &'f T)>) {
+        unsafe { self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(self.buf)); }
+        for (offset, data) in writes {
+            let t_size = std::mem::size_of::<T>();
+            let offset_raw = offset * t_size;
+            if offset_raw + t_size > self.size {
+                panic!("Cannot write past buffer bounds!");
+            }
+            unsafe {
+                let data_raw: &[u8] = std::slice::from_raw_parts(
+                    data as *const T as *const u8,
+                    t_size,
+                );
+
+                self.gl.buffer_sub_data_u8_slice(glow::SHADER_STORAGE_BUFFER, offset_raw as i32, data_raw);
+            }
+        }
+        unsafe { self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None); }
     }
 
     pub fn size(&self) -> usize {
