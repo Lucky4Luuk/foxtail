@@ -14,19 +14,27 @@ impl<T> FixedSizeBuffer<T> {
         let gl = renderer.gl.clone();
         let size = std::mem::size_of::<T>() * count;
         trace!("Allocating buffer with size: {}b/{}kb/{}mb", size, size/1024, size/1024/1024);
-        let buf = unsafe {
-            let b = gl.create_buffer().expect("Failed to create buffer!");
-            gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(b));
-            gl.buffer_storage(glow::SHADER_STORAGE_BUFFER, size as i32, None, glow::DYNAMIC_STORAGE_BIT | glow::MAP_WRITE_BIT);
-            gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None);
-            b
-        };
-        Self {
+        let buf = unsafe { gl.create_buffer().expect("Failed to create buffer!") };
+        let obj = Self {
             buf: buf,
             size: size,
             gl: gl,
             bound_loc: None,
             _phantom: std::marker::PhantomData,
+        };
+
+        obj.alloc_buffer();
+
+        obj
+    }
+
+    fn alloc_buffer(&self) {
+        let zero_data = vec![0u8; self.size];
+        unsafe {
+            self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(self.buf));
+            self.gl.buffer_storage(glow::SHADER_STORAGE_BUFFER, self.size as i32, None, glow::DYNAMIC_STORAGE_BIT | glow::MAP_WRITE_BIT);
+            self.gl.buffer_sub_data_u8_slice(glow::SHADER_STORAGE_BUFFER, 0, &zero_data);
+            self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None);
         }
     }
 
@@ -66,6 +74,15 @@ impl<T> FixedSizeBuffer<T> {
             }
         }
         unsafe { self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None); }
+    }
+
+    pub fn clear(&self) {
+        unsafe {
+            self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, Some(self.buf));
+            self.gl.invalidate_buffer_sub_data(glow::SHADER_STORAGE_BUFFER, 0, self.size as i32);
+            self.gl.bind_buffer(glow::SHADER_STORAGE_BUFFER, None);
+        }
+        self.alloc_buffer();
     }
 
     pub fn size(&self) -> usize {
