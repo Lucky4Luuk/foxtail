@@ -6,6 +6,7 @@ pub use crate::rendering::{
     shader::*,
     render_pass::*,
     buffer::*,
+    atomic_counter::*,
 };
 
 pub use winit_input_helper::WinitInputHelper as Input;

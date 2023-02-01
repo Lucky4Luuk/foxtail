@@ -9,6 +9,7 @@ pub mod render_pass;
 pub mod mesh;
 pub mod shader;
 pub mod buffer;
+pub mod atomic_counter;
 
 #[derive(Debug)]
 pub enum RenderError {
