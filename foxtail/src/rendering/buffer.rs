@@ -89,6 +89,10 @@ impl<T> FixedSizeBuffer<T> {
         self.size
     }
 
+    pub unsafe fn buf(&self) -> NativeBuffer {
+        self.buf
+    }
+
     pub fn bind(&mut self, location: u32) {
         self.bound_loc = Some(location);
         unsafe {

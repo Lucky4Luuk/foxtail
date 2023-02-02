@@ -11,6 +11,8 @@ use winit::{
 use winit_input_helper::WinitInputHelper;
 use glow::HasContext;
 
+pub use glow;
+
 pub mod prelude;
 pub mod rendering;
 

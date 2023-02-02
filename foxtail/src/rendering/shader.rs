@@ -24,6 +24,11 @@ impl<'u> UniformInterface<'u> {
         unsafe { self.gl.uniform_1_f32(loc.as_ref(), val); }
     }
 
+    pub fn set_u32(&self, name: &str, val: u32) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_1_u32(loc.as_ref(), val); }
+    }
+
     pub fn set_vec2(&self, name: &str, val: [f32; 2]) {
         let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
         unsafe { self.gl.uniform_2_f32(loc.as_ref(), val[0], val[1]); }
@@ -172,6 +177,16 @@ impl ComputeShader {
                 shader_bound: shader_bound,
             }
         }
+    }
+
+    pub fn set_uniforms<F: FnOnce(UniformInterface)>(&self, f: F) {
+        self.bind();
+        let uni = UniformInterface {
+            bound_shader: &self.program,
+            gl: self.gl.clone(),
+        };
+        f(uni);
+        self.unbind();
     }
 
     fn bind(&self) {
