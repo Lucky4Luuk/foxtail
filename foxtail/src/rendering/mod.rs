@@ -50,12 +50,13 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(window: &Window) -> Self {
+    pub fn new(window: &std::sync::Mutex<Window>) -> Self {
+        let window = window.lock().unwrap();
         let size = window.inner_size();
 
         let mut conf = GlConfig::default();
         conf.version = (4,5);
-        let context = GlContext::create(window, conf).expect("Failed to create OpenGL context!");
+        let context = GlContext::create(&*window, conf).expect("Failed to create OpenGL context!");
         let gl = unsafe {
             context.make_current();
             let gl = Context::from_loader_function(|symbol| context.get_proc_address(symbol) as *const _);

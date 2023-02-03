@@ -26,9 +26,9 @@ impl Demo {
 }
 
 impl App for Demo {
-    fn update(&mut self, _ctx: &mut Context) {}
+    fn update(&mut self, _ctx: &Context) {}
 
-    fn render(&mut self, _ctx: &mut Context) {
+    fn render(&mut self, _ctx: &Context) {
         let _ = self.framebuffer.while_bound(|| {
             self.framebuffer.clear();
             self.shader.while_bound(|_| {

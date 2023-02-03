@@ -1,7 +1,7 @@
 #[macro_use] extern crate log;
 
 use std::ops::Deref;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopBuilder},
@@ -18,8 +18,8 @@ pub mod rendering;
 
 pub trait App {
     fn event(&mut self, _input: &prelude::Input) {}
-    fn update(&mut self, _ctx: &mut Context) {}
-    fn render(&mut self, _ctx: &mut Context) {}
+    fn update(&mut self, _ctx: &Context) {}
+    fn render(&mut self, _ctx: &Context) {}
     fn on_resize(&mut self, _size: (i32, i32)) {}
 }
 
@@ -47,13 +47,13 @@ struct State<A: App> {
 }
 
 impl<A: App> State<A> {
-    fn new<F: Fn(&mut Context) -> A>(window: Arc<Window>, event_loop: &EventLoop<EngineEvent>, f: F) -> Self {
+    fn new<F: Fn(&Context) -> A>(window: Arc<Mutex<Window>>, event_loop: &EventLoop<EngineEvent>, f: F) -> Self {
         let renderer = rendering::Renderer::new(&window);
 
         let mut fox_ui = foxtail_ui::FoxUi::new(event_loop, renderer.gl.clone(), window.clone());
         let event_loop_proxy = event_loop.create_proxy();
 
-        let video_modes = window.current_monitor().expect("No monitor detected!").video_modes().collect();
+        let video_modes = window.lock().unwrap().current_monitor().expect("No monitor detected!").video_modes().collect();
 
         let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &video_modes);
         let app = f(&mut ctx);
@@ -81,8 +81,8 @@ impl<A: App> State<A> {
         if !self.renderer.is_context_current {
             self.renderer.gl_make_current();
         }
-        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui, &self.video_modes);
-        self.app.update(&mut ctx);
+        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, &self.video_modes);
+        self.app.update(&ctx);
         drop(ctx);
         if self.renderer.is_context_current {
             self.renderer.gl_make_not_current();
@@ -92,8 +92,8 @@ impl<A: App> State<A> {
     fn render(&mut self) -> Result<(), rendering::RenderError> {
         puffin::profile_function!();
         self.renderer.start_frame()?;
-        let mut ctx = Context::new(&self.renderer, &self.event_loop, &mut self.fox_ui, &self.video_modes);
-        self.app.render(&mut ctx);
+        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, &self.video_modes);
+        self.app.render(&ctx);
         unsafe {
             self.renderer.gl.disable(glow::FRAMEBUFFER_SRGB);
         }
@@ -107,13 +107,13 @@ impl<A: App> State<A> {
 pub struct Context<'c> {
     renderer: &'c rendering::Renderer,
     event_loop: &'c EventLoopProxy<EngineEvent>,
-    fox_ui: &'c mut foxtail_ui::FoxUi,
+    fox_ui: &'c foxtail_ui::FoxUi,
 
     video_modes: &'c Vec<VideoMode>,
 }
 
 impl<'c> Context<'c> {
-    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c mut foxtail_ui::FoxUi, video_modes: &'c Vec<VideoMode>) -> Self {
+    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c foxtail_ui::FoxUi, video_modes: &'c Vec<VideoMode>) -> Self {
         Self {
             renderer: renderer,
             event_loop: event_loop,
@@ -147,7 +147,7 @@ impl<'c> Context<'c> {
         &self.event_loop
     }
 
-    pub fn draw_ui<F: FnMut(&foxtail_ui::EguiContext)>(&mut self, f: F) {
+    pub fn draw_ui<F: FnMut(&foxtail_ui::EguiContext)>(&self, f: F) {
         self.fox_ui.draw(f);
     }
 }
@@ -159,11 +159,11 @@ impl<'c> Deref for Context<'c> {
     }
 }
 
-pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
+pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
     pretty_env_logger::formatted_timed_builder().filter_level(log::LevelFilter::max()).init();
 
     let event_loop = EventLoopBuilder::<EngineEvent>::with_user_event().build();
-    let window = Arc::new(WindowBuilder::new().with_inner_size(winit::dpi::LogicalSize::<u32>::new(1280u32, 720u32)).build(&event_loop).unwrap());
+    let window = Arc::new(Mutex::new(WindowBuilder::new().with_inner_size(winit::dpi::LogicalSize::<u32>::new(1280u32, 720u32)).build(&event_loop).unwrap()));
 
     let mut state = State::new(window.clone(), &event_loop, f);
 
@@ -179,17 +179,17 @@ pub fn run<A: App + 'static, F: Fn(&mut Context) -> A>(f: F) {
         }
         if let Event::UserEvent(ref ue) = event {
             match ue {
-                EngineEvent::SetTitle(title) => window.set_title(title),
-                EngineEvent::SetMaximized(max) => window.set_maximized(*max),
-                EngineEvent::SetMinimized(min) => window.set_minimized(*min),
+                EngineEvent::SetTitle(title) => window.lock().unwrap().set_title(title),
+                EngineEvent::SetMaximized(max) => window.lock().unwrap().set_maximized(*max),
+                EngineEvent::SetMinimized(min) => window.lock().unwrap().set_minimized(*min),
                 EngineEvent::SetFullscreen(full) => {
                     if let Some(fullscreen) = full {
                         match fullscreen {
-                            Fullscreen::Borderless => window.set_fullscreen(Some(WinitFullscreen::Borderless(None))),
-                            Fullscreen::Exclusive(mode) => window.set_fullscreen(Some(WinitFullscreen::Exclusive(mode.clone()))),
+                            Fullscreen::Borderless => window.lock().unwrap().set_fullscreen(Some(WinitFullscreen::Borderless(None))),
+                            Fullscreen::Exclusive(mode) => window.lock().unwrap().set_fullscreen(Some(WinitFullscreen::Exclusive(mode.clone()))),
                         }
                     } else {
-                        window.set_fullscreen(None);
+                        window.lock().unwrap().set_fullscreen(None);
                     }
                 },
             }
