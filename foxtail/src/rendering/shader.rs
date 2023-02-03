@@ -24,11 +24,6 @@ impl<'u> UniformInterface<'u> {
         unsafe { self.gl.uniform_1_f32(loc.as_ref(), val); }
     }
 
-    pub fn set_u32(&self, name: &str, val: u32) {
-        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
-        unsafe { self.gl.uniform_1_u32(loc.as_ref(), val); }
-    }
-
     pub fn set_vec2(&self, name: &str, val: [f32; 2]) {
         let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
         unsafe { self.gl.uniform_2_f32(loc.as_ref(), val[0], val[1]); }
@@ -42,6 +37,26 @@ impl<'u> UniformInterface<'u> {
     pub fn set_vec4(&self, name: &str, val: [f32; 4]) {
         let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
         unsafe { self.gl.uniform_4_f32(loc.as_ref(), val[0], val[1], val[2], val[3]); }
+    }
+
+    pub fn set_u32(&self, name: &str, val: u32) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_1_u32(loc.as_ref(), val); }
+    }
+
+    pub fn set_uvec2(&self, name: &str, val: [u32; 2]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_2_u32(loc.as_ref(), val[0], val[1]); }
+    }
+
+    pub fn set_uvec3(&self, name: &str, val: [u32; 3]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_3_u32(loc.as_ref(), val[0], val[1], val[2]); }
+    }
+
+    pub fn set_uvec4(&self, name: &str, val: [u32; 4]) {
+        let loc = unsafe { self.gl.get_uniform_location(*self.bound_shader, name) };
+        unsafe { self.gl.uniform_4_u32(loc.as_ref(), val[0], val[1], val[2], val[3]); }
     }
 
     pub fn set_mat2(&self, name: &str, val: [f32; 2*2]) {
