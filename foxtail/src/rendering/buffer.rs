@@ -12,6 +12,10 @@ pub struct FixedSizeBuffer<T> {
 impl<T> FixedSizeBuffer<T> {
     pub fn new(renderer: &super::Renderer, count: usize) -> Self {
         let gl = renderer.gl.clone();
+        Self::new_from_gl(gl, count)
+    }
+
+    pub(crate) fn new_from_gl(gl: Arc<Context>, count: usize) -> Self {
         let size = std::mem::size_of::<T>() * count;
         trace!("Allocating buffer with size: {}b/{}kb/{}mb", size, size/1024, size/1024/1024);
         let buf = unsafe { gl.create_buffer().expect("Failed to create buffer!") };

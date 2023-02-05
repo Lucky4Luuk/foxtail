@@ -55,7 +55,7 @@ impl Renderer {
         let size = window.inner_size();
 
         let mut conf = GlConfig::default();
-        conf.version = (4,5);
+        conf.version = (4,6);
         let context = GlContext::create(&*window, conf).expect("Failed to create OpenGL context!");
         let gl = unsafe {
             context.make_current();
