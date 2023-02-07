@@ -2,13 +2,70 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use glow::*;
 
-unsafe fn compile_stage(gl: &Context, stage: u32, src: &str) -> NativeShader {
+fn format_shader_errors(src: &str, log: &str) -> String {
+    let src_split = src.lines().collect::<Vec<&str>>();
+    let mut formatted_errors = String::new();
+    for line in log.lines() {
+        let line_split = line.split(":").collect::<Vec<&str>>();
+        let line_number = line_split.get(0).map(|s| {
+            let mut s = s.trim().to_string();
+            s = s.replace("0(", "");
+            s.pop();
+            s.parse::<usize>().map(|i| i.wrapping_sub(1)).unwrap_or(0)
+        }).unwrap_or(0);
+        let err_code = line_split.get(1).map(|s| {
+            let mut s = s.trim().to_string();
+            s = s.replace("error ", "");
+            s
+        }).unwrap_or(String::from(""));
+        let err_line = line_split.get(2).map(|s| s.trim()).unwrap_or("");
+
+        let mut var_name: Option<String> = None;
+        if &err_code == "C1503" && err_line.contains("undefined variable") {
+            let mut var = err_line.replace("undefined variable", "").trim().to_string();
+            var = var[1..].to_string();
+            var.pop();
+            var_name = Some(var);
+        }
+
+        formatted_errors.push_str("\x1b[1;31m");
+        formatted_errors.push_str(line);
+        formatted_errors.push_str("\x1b[0m");
+        formatted_errors.push('\n');
+        let min = line_number.wrapping_sub(1).min(line_number);
+        let max = line_number.wrapping_add(1).max(line_number);
+        let line_num_str = line_number.wrapping_add(1).to_string();
+        for i in min..=max {
+            formatted_errors.push_str("\x1b[1;36m");
+            if i == line_number {
+                formatted_errors.push_str(&format!(" {} | ", line_num_str));
+            } else {
+                for _ in 0..(line_num_str.len()+2) { formatted_errors.push(' '); }
+                formatted_errors.push_str("| ");
+            }
+            formatted_errors.push_str("\x1b[22;0m");
+            let mut code_line = src_split.get(i).map(|s| *s).unwrap_or("CODE NOT FOUND").to_string();
+            if let Some(var_name) = var_name.as_ref() {
+                code_line = code_line.replace(var_name, &format!("\x1b[1;33m{}\x1b[22;0m", var_name));
+            }
+            formatted_errors.push_str(&code_line);
+            if i == line_number { formatted_errors.push_str("\x1b[1;31m <- Error occurs here\x1b[22;0m"); }
+            formatted_errors.push('\n');
+        }
+        formatted_errors.push('\n');
+    }
+    formatted_errors
+}
+
+unsafe fn compile_stage(gl: &Context, name: &str, stage: u32, src: &str) -> NativeShader {
     let shader = gl.create_shader(stage).expect("Failed to create shader!");
     gl.shader_source(shader, src);
     gl.compile_shader(shader);
     if !gl.get_shader_compile_status(shader) {
-        error!("Shader compile error: {}", gl.get_shader_info_log(shader));
-        panic!("Failed to compile shader!");
+        let log = gl.get_shader_info_log(shader);
+        error!("Shader compile error: {}", log);
+        let formatted_errors = format_shader_errors(src, &log);
+        panic!("Failed to compile shader (`{}`)! Errors:\n{}", name, formatted_errors);
     }
     shader
 }
@@ -90,18 +147,18 @@ impl Drop for Shader {
 }
 
 impl Shader {
-    pub fn new(renderer: &super::Renderer, vs: &str, fs: &str) -> Self {
+    pub fn new(renderer: &super::Renderer, (vs, vs_name): (&str, &str), (fs, fs_name): (&str, &str)) -> Self {
         let gl = renderer.gl.clone();
         let shader_bound = renderer.shader_bound.clone();
-        Self::new_from_gl(gl, shader_bound, vs, fs)
+        Self::new_from_gl(gl, shader_bound, vs, vs_name, fs, fs_name)
     }
 
-    pub(crate) fn new_from_gl(gl: Arc<Context>, shader_bound: Arc<AtomicBool>, vs: &str, fs: &str) -> Self {
+    pub(crate) fn new_from_gl(gl: Arc<Context>, shader_bound: Arc<AtomicBool>, vs: &str, vs_name: &str, fs: &str, fs_name: &str) -> Self {
         unsafe {
             let program = gl.create_program().expect("Failed to create shader program!");
 
-            let vs_shader = compile_stage(&gl, VERTEX_SHADER, vs);
-            let fs_shader = compile_stage(&gl, FRAGMENT_SHADER, fs);
+            let vs_shader = compile_stage(&gl, &vs_name, VERTEX_SHADER, vs);
+            let fs_shader = compile_stage(&gl, &fs_name, FRAGMENT_SHADER, fs);
 
             gl.attach_shader(program, vs_shader);
             gl.attach_shader(program, fs_shader);
@@ -165,17 +222,17 @@ impl Drop for ComputeShader {
 }
 
 impl ComputeShader {
-    pub fn new(renderer: &super::Renderer, cs: &str) -> Self {
+    pub fn new(renderer: &super::Renderer, (cs, cs_name): (&str, &str)) -> Self {
         let gl = renderer.gl.clone();
         let shader_bound = renderer.shader_bound.clone();
-        Self::new_from_gl(gl, shader_bound, cs)
+        Self::new_from_gl(gl, shader_bound, cs, cs_name)
     }
 
-    pub(crate) fn new_from_gl(gl: Arc<Context>, shader_bound: Arc<AtomicBool>, cs: &str) -> Self {
+    pub(crate) fn new_from_gl(gl: Arc<Context>, shader_bound: Arc<AtomicBool>, cs: &str, cs_name: &str) -> Self {
         unsafe {
             let program = gl.create_program().expect("Failed to create shader program!");
 
-            let cs_shader = compile_stage(&gl, COMPUTE_SHADER, cs);
+            let cs_shader = compile_stage(&gl, cs_name, COMPUTE_SHADER, cs);
 
             gl.attach_shader(program, cs_shader);
             gl.link_program(program);

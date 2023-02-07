@@ -64,7 +64,7 @@ impl Renderer {
         };
         let shader_bound = Arc::new(AtomicBool::new(false));
 
-        let default_fb_shader = shader::Shader::new_from_gl(gl.clone(), shader_bound.clone(), VS, FB_FS);
+        let default_fb_shader = shader::Shader::new_from_gl(gl.clone(), shader_bound.clone(), VS, "foxtail_default_fb_vs.glsl", FB_FS, "foxtail_default_fb_fs.glsl");
 
         Self {
             size: size,

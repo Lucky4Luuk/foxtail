@@ -15,7 +15,7 @@ impl Demo {
         ctx.set_window_title("Foxtail demo");
         trace!("Demo created!");
         let mesh = Mesh::quad(&ctx);
-        let shader = Shader::new(&ctx, VS, FS);
+        let shader = Shader::new(&ctx, (VS, "../shaders/vs.glsl"), (FS, "../shaders/fs.glsl"));
         let fb = Framebuffer::new(&ctx);
         Self {
             mesh: mesh,
