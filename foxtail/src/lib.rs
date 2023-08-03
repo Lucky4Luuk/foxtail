@@ -48,16 +48,18 @@ struct State<A: App> {
 
 impl<A: App> State<A> {
     fn new<F: Fn(&Context) -> A>(window: Arc<Mutex<Window>>, event_loop: &EventLoop<EngineEvent>, f: F) -> Self {
-        let renderer = rendering::Renderer::new(&window);
+        let mut renderer = rendering::Renderer::new(&window);
 
         let mut fox_ui = foxtail_ui::FoxUi::new(event_loop, renderer.gl.clone(), window.clone());
         let event_loop_proxy = event_loop.create_proxy();
 
         let video_modes = window.lock().unwrap().current_monitor().expect("No monitor detected!").video_modes().collect();
 
+        renderer.start_frame();
         let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &video_modes);
         let app = f(&mut ctx);
         drop(ctx);
+        renderer.end_frame();
 
         Self {
             app: app,
@@ -125,6 +127,26 @@ impl<'c> Context<'c> {
 
     pub fn video_modes(&self) -> &Vec<VideoMode> {
         self.video_modes
+    }
+
+    pub fn enable_depth_buffer(&self, enabled: bool) {
+        if enabled {
+            unsafe { self.renderer.gl.enable(glow::DEPTH_TEST); }
+        } else {
+            unsafe { self.renderer.gl.disable(glow::DEPTH_TEST); }
+        }
+    }
+
+    pub fn enable_backface_culling(&self, enabled: bool) {
+        if enabled {
+            unsafe {
+                self.renderer.gl.enable(glow::CULL_FACE);
+                self.renderer.gl.cull_face(glow::BACK);
+                self.renderer.gl.front_face(glow::CW);
+            }
+        } else {
+            unsafe { self.renderer.gl.disable(glow::CULL_FACE); }
+        }
     }
 
     pub fn set_window_title<S: Into<String>>(&self, name: S) {

@@ -20,7 +20,7 @@ impl super::Drawable for Mesh {
         unsafe {
             // self.gl.bind_buffer(ARRAY_BUFFER, Some(self.vbo));
             self.gl.bind_vertex_array(Some(self.vao));
-            self.gl.draw_arrays(TRIANGLE_FAN, 0, self.vert_count);
+            self.gl.draw_arrays(TRIANGLES, 0, self.vert_count);
             self.gl.bind_vertex_array(None);
         }
         Ok(())
@@ -78,7 +78,7 @@ impl Mesh {
             Self {
                 vbo: vbo,
                 vao: vao,
-                vert_count: 4,
+                vert_count: (vertex_data.len() / 8) as i32,
                 gl: gl,
                 shader_bound: renderer.shader_bound.clone(),
             }

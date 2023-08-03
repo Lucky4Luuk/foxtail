@@ -111,7 +111,7 @@ impl Renderer {
         self.gl_make_current();
         unsafe {
             self.gl.clear_color(0.2,0.2,0.2,1.0);
-            self.gl.clear(COLOR_BUFFER_BIT);
+            self.gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
         }
         Ok(())
     }
