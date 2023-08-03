@@ -38,17 +38,22 @@ impl Drop for Mesh {
 
 impl Mesh {
     pub fn quad(renderer: &super::Renderer) -> Self {
+        let quad_vertices: [f32; 32] = [
+            // Position    // Color     // UV
+            -1.0,-1.0,0.0, 1.0,1.0,1.0, 0.0,0.0,
+             1.0,-1.0,0.0, 1.0,1.0,1.0, 1.0,0.0,
+             1.0, 1.0,0.0, 1.0,1.0,1.0, 1.0,1.0,
+            -1.0, 1.0,0.0, 1.0,1.0,1.0, 0.0,1.0,
+        ];
+
+        Self::from_vertices(renderer, &quad_vertices)
+    }
+
+    pub fn from_vertices(renderer: &super::Renderer, vertex_data: &[f32]) -> Self {
         unsafe {
-            let quad_vertices: [f32; 32] = [
-                // Position    // Color     // UV
-                -1.0,-1.0,0.0, 1.0,1.0,1.0, 0.0,0.0,
-                 1.0,-1.0,0.0, 1.0,1.0,1.0, 1.0,0.0,
-                 1.0, 1.0,0.0, 1.0,1.0,1.0, 1.0,1.0,
-                -1.0, 1.0,0.0, 1.0,1.0,1.0, 0.0,1.0,
-            ];
-            let quad_vertices_u8: &[u8] = core::slice::from_raw_parts(
-                quad_vertices.as_ptr() as *const u8,
-                quad_vertices.len() * core::mem::size_of::<f32>(),
+            let vertices_u8: &[u8] = core::slice::from_raw_parts(
+                vertex_data.as_ptr() as *const u8,
+                vertex_data.len() * core::mem::size_of::<f32>(),
             );
 
             let gl = renderer.gl.clone();
@@ -56,7 +61,7 @@ impl Mesh {
 
             let vbo = gl.create_buffer().expect("Failed to create VBO!");
             gl.bind_buffer(ARRAY_BUFFER, Some(vbo));
-            gl.buffer_data_u8_slice(ARRAY_BUFFER, quad_vertices_u8, STATIC_DRAW);
+            gl.buffer_data_u8_slice(ARRAY_BUFFER, vertices_u8, STATIC_DRAW);
 
             let vao = gl.create_vertex_array().expect("Failed to create VAO!");
             gl.bind_vertex_array(Some(vao));
