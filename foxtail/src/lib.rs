@@ -141,8 +141,8 @@ impl<'c> Context<'c> {
         if enabled {
             unsafe {
                 self.renderer.gl.enable(glow::CULL_FACE);
-                self.renderer.gl.cull_face(glow::BACK);
-                self.renderer.gl.front_face(glow::CCW);
+                self.renderer.gl.cull_face(glow::FRONT);
+                self.renderer.gl.front_face(glow::CW);
             }
         } else {
             unsafe { self.renderer.gl.disable(glow::CULL_FACE); }
