@@ -10,6 +10,7 @@ pub mod mesh;
 pub mod shader;
 pub mod buffer;
 pub mod atomic_counter;
+pub mod texture;
 
 #[derive(Debug)]
 pub enum RenderError {
