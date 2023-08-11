@@ -35,6 +35,7 @@ pub enum EngineEvent {
     SetMaximized(bool),
     SetMinimized(bool),
     SetFullscreen(Option<Fullscreen>),
+    SetSize((u32, u32)),
 }
 
 struct State<A: App> {
@@ -165,6 +166,10 @@ impl<'c> Context<'c> {
         self.event_loop.send_event(EngineEvent::SetFullscreen(fullscreen)).map_err(|e| error!("Event loop proxy error {}", e)).expect("The event loop closed!");
     }
 
+    pub fn set_size(&self, size: (u32, u32)) {
+        self.event_loop.send_event(EngineEvent::SetSize(size)).map_err(|e| error!("Event loop proxy error {}", e)).expect("The event loop closed!");
+    }
+
     pub fn event_loop(&self) -> &EventLoopProxy<EngineEvent> {
         &self.event_loop
     }
@@ -214,6 +219,9 @@ pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
                         window.lock().unwrap().set_fullscreen(None);
                     }
                 },
+                EngineEvent::SetSize((width, height)) => {
+                    window.lock().unwrap().set_inner_size::<winit::dpi::PhysicalSize<u32>>((*width, *height).into());
+                }
             }
         }
         if !event_consumed {
