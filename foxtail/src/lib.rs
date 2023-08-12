@@ -130,6 +130,14 @@ impl<'c> Context<'c> {
         self.video_modes
     }
 
+    pub fn enable_alpha_blending(&self, enabled: bool) {
+        if enabled {
+            unsafe { self.renderer.gl.enable(glow::BLEND); }
+        } else {
+            unsafe { self.renderer.gl.disable(glow::BLEND); }
+        }
+    }
+
     pub fn enable_depth_buffer(&self, enabled: bool) {
         if enabled {
             unsafe { self.renderer.gl.enable(glow::DEPTH_TEST); }
