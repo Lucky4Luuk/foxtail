@@ -6,10 +6,11 @@ edition = "2021"
 [dependencies]
 pretty_env_logger = "0.4.0"
 log = "0.4"
-winit = "0.27"
-winit_input_helper = "0.13.0"
-raw-gl-context = "0.1.2"
-glow = "0.11.2"
+winit = "0.28"
+winit_input_helper = "0.14"
+# raw-gl-context = "0.1.2"
+raw-gl-context = { git = "https://github.com/Lucky4Luuk/raw-gl-context.git" }
+glow = "0.12"
 puffin = "0.14"
 
 foxtail_ui = { path = "../foxtail_ui" }

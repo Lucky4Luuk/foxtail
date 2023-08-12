@@ -57,7 +57,7 @@ impl Renderer {
 
         let mut conf = GlConfig::default();
         conf.version = (4,6);
-        let context = GlContext::create(&*window, conf).expect("Failed to create OpenGL context!");
+        let context = unsafe { GlContext::create(&*window, conf).expect("Failed to create OpenGL context!") };
         let gl = unsafe {
             context.make_current();
             let gl = Context::from_loader_function(|symbol| context.get_proc_address(symbol) as *const _);
@@ -79,12 +79,12 @@ impl Renderer {
     }
 
     pub(crate) fn gl_make_current(&mut self) {
-        self.context.make_current();
+        unsafe { self.context.make_current(); }
         self.is_context_current = true;
     }
 
     pub(crate) fn gl_make_not_current(&mut self) {
-        self.context.make_not_current();
+        unsafe { self.context.make_not_current(); }
         self.is_context_current = false;
     }
 

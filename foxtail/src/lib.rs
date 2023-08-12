@@ -56,19 +56,19 @@ impl<A: App> State<A> {
 
         let video_modes = window.lock().unwrap().current_monitor().expect("No monitor detected!").video_modes().collect();
 
-        renderer.start_frame();
+        renderer.start_frame().expect("Failed to create a frame!");
         let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &video_modes);
         let app = f(&mut ctx);
         drop(ctx);
-        renderer.end_frame();
+        renderer.end_frame().expect("Failed to end a frame!");
 
         Self {
-            app: app,
-            renderer: renderer,
-            fox_ui: fox_ui,
+            app,
+            renderer,
+            fox_ui,
             event_loop: event_loop_proxy,
 
-            video_modes: video_modes,
+            video_modes,
         }
     }
 
