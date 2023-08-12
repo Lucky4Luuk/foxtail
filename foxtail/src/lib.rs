@@ -132,7 +132,10 @@ impl<'c> Context<'c> {
 
     pub fn enable_alpha_blending(&self, enabled: bool) {
         if enabled {
-            unsafe { self.renderer.gl.enable(glow::BLEND); }
+            unsafe {
+                self.renderer.gl.enable(glow::BLEND);
+                self.renderer.gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+            }
         } else {
             unsafe { self.renderer.gl.disable(glow::BLEND); }
         }
