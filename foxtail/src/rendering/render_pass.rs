@@ -50,8 +50,8 @@ impl Framebuffer {
             let tex = gl.create_texture().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer color attachment!");
             gl.bind_texture(TEXTURE_2D, Some(tex));
             gl.tex_image_2d(TEXTURE_2D, 0, RGBA32F as i32, size.0, size.1, 0, RGBA, UNSIGNED_BYTE, None);
-            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, LINEAR as i32);
-            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAG_FILTER, LINEAR as i32);
+            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, NEAREST as i32);
+            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAG_FILTER, NEAREST as i32);
             gl.bind_texture(TEXTURE_2D, None);
             gl.framebuffer_texture_2d(FRAMEBUFFER, COLOR_ATTACHMENT0, TEXTURE_2D, Some(tex), 0);
 

@@ -50,6 +50,7 @@ pub struct TextureSettings {
 
 pub struct Texture {
     tex: glow::Texture,
+    size: (usize, usize),
     gl: Arc<Context>,
     shader_bound: Arc<AtomicBool>,
 }
@@ -77,9 +78,14 @@ impl Texture {
         super::gl_error(&gl);
         Self {
             tex,
+            size: (settings.width, settings.height),
             gl,
             shader_bound: renderer.shader_bound.clone(),
         }
+    }
+
+    pub fn size(&self) -> (usize, usize) {
+        self.size
     }
 
     fn bind_tex(&self) {
