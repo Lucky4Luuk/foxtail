@@ -16,6 +16,14 @@ pub use glow;
 pub mod prelude;
 pub mod rendering;
 
+#[cfg(target_os = "windows")]
+pub mod windows_perf_flags {
+    #[no_mangle]
+    pub static NvOptimusEnablement: u32 = 1;
+    #[no_mangle]
+    pub static AmdPowerXpressRequestHighPerformance: i32 = 1;
+}
+
 pub trait App {
     fn event(&mut self, _input: &prelude::Input) {}
     fn update(&mut self, _ctx: &Context) {}
