@@ -10,6 +10,7 @@ pub struct Framebuffer {
     shader_bound: Arc<AtomicBool>,
     default_fb_shader: Arc<super::shader::Shader>,
     mesh: super::mesh::Mesh,
+    size: (usize, usize),
 }
 
 impl super::Drawable for Framebuffer {
@@ -41,8 +42,7 @@ impl Drop for Framebuffer {
 }
 
 impl Framebuffer {
-    pub fn with_resolution(renderer: &super::Renderer, size: (i32, i32)) -> Self {
-        let gl = renderer.gl.clone();
+    fn create_fb(gl: Arc<Context>, size: (i32, i32)) -> (NativeFramebuffer, NativeTexture, NativeRenderbuffer) {
         let fbo = unsafe { gl.create_framebuffer().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer!") };
         let (tex, rbo) = unsafe {
             gl.bind_framebuffer(FRAMEBUFFER, Some(fbo));
@@ -70,15 +70,22 @@ impl Framebuffer {
 
             (tex, rbo)
         };
+        (fbo, tex, rbo)
+    }
+
+    pub fn with_resolution(renderer: &super::Renderer, size: (i32, i32)) -> Self {
+        let gl = renderer.gl.clone();
+        let (fbo, tex, rbo) = Self::create_fb(gl.clone(), size);
         super::gl_error(&gl);
         Self {
-            fbo: fbo,
-            tex: tex,
-            rbo: rbo,
-            gl: gl,
+            fbo,
+            tex,
+            rbo,
+            gl,
             shader_bound: renderer.shader_bound.clone(),
             default_fb_shader: renderer.default_fb_shader.clone(),
             mesh: super::mesh::Mesh::quad(renderer),
+            size: (size.0 as usize, size.1 as usize),
         }
     }
 
@@ -93,37 +100,12 @@ impl Framebuffer {
             self.gl.delete_texture(self.tex);
             self.gl.delete_renderbuffer(self.rbo);
         }
-        let fbo = unsafe { self.gl.create_framebuffer().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer!") };
-        let (tex, rbo) = unsafe {
-            self.gl.bind_framebuffer(FRAMEBUFFER, Some(fbo));
-
-            let tex = self.gl.create_texture().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer color attachment!");
-            self.gl.bind_texture(TEXTURE_2D, Some(tex));
-            self.gl.tex_image_2d(TEXTURE_2D, 0, RGBA32F as i32, size.0, size.1, 0, RGBA, UNSIGNED_BYTE, None);
-            self.gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, LINEAR as i32);
-            self.gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAG_FILTER, LINEAR as i32);
-            self.gl.bind_texture(TEXTURE_2D, None);
-            self.gl.framebuffer_texture_2d(FRAMEBUFFER, COLOR_ATTACHMENT0, TEXTURE_2D, Some(tex), 0);
-
-            let rbo = self.gl.create_renderbuffer().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer renderbuffer!");
-            self.gl.bind_renderbuffer(RENDERBUFFER, Some(rbo));
-            self.gl.renderbuffer_storage(RENDERBUFFER, DEPTH24_STENCIL8, size.0, size.1);
-            self.gl.bind_renderbuffer(RENDERBUFFER, None);
-            self.gl.framebuffer_renderbuffer(FRAMEBUFFER, DEPTH_STENCIL_ATTACHMENT, RENDERBUFFER, Some(rbo));
-
-            let fb_status = self.gl.check_framebuffer_status(FRAMEBUFFER);
-            if fb_status != FRAMEBUFFER_COMPLETE {
-                error!("Incomplete framebuffer! Code: {}", fb_status);
-                panic!("Incomplete framebuffer!");
-            }
-            self.gl.bind_framebuffer(FRAMEBUFFER, None);
-
-            (tex, rbo)
-        };
+        let (fbo, tex, rbo) = Self::create_fb(self.gl.clone(), size);
         super::gl_error(&self.gl);
         self.fbo = fbo;
         self.tex = tex;
         self.rbo = rbo;
+        self.size = (size.0 as usize, size.1 as usize);
     }
 
     fn bind_tex(&self) {
@@ -158,9 +140,13 @@ impl Framebuffer {
 
     /// Runs a closure while the framebuffer is bound
     pub fn while_bound<F: FnOnce() -> Result<(), super::RenderError>>(&self, f: F) -> Result<(), super::RenderError> {
+        let mut og_viewport = [0i32; 4];
+        unsafe { self.gl.get_parameter_i32_slice(glow::VIEWPORT, &mut og_viewport); }
+        unsafe { self.gl.viewport(0, 0, self.size.0 as i32, self.size.1 as i32); }
         self.bind();
         f()?;
         self.unbind();
+        unsafe { self.gl.viewport(og_viewport[0], og_viewport[1], og_viewport[2], og_viewport[3]); }
         Ok(())
     }
 }
