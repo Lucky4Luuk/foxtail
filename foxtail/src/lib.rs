@@ -37,6 +37,12 @@ pub enum Fullscreen {
     Exclusive(VideoMode),
 }
 
+#[derive(Debug, PartialEq)]
+pub enum CullSide {
+    Front,
+    Back,
+}
+
 #[derive(Debug)]
 pub enum EngineEvent {
     SetTitle(String),
@@ -157,11 +163,11 @@ impl<'c> Context<'c> {
         }
     }
 
-    pub fn enable_backface_culling(&self, enabled: bool) {
-        if enabled {
+    pub fn enable_backface_culling(&self, side: Option<CullSide>) {
+        if let Some(side) = side {
             unsafe {
                 self.renderer.gl.enable(glow::CULL_FACE);
-                self.renderer.gl.cull_face(glow::BACK);
+                self.renderer.gl.cull_face(if side == CullSide::Front { glow::FRONT } else { glow::BACK });
                 self.renderer.gl.front_face(glow::CW);
             }
         } else {

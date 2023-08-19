@@ -39,6 +39,13 @@ impl TextureFiltering {
             Self::Nearest => NEAREST as i32,
         }
     }
+
+    fn to_gl_mipmap(&self) -> i32 {
+        match self {
+            Self::Linear => LINEAR_MIPMAP_LINEAR as i32,
+            Self::Nearest => NEAREST_MIPMAP_NEAREST as i32,
+        }
+    }
 }
 
 pub struct TextureSettings {
@@ -46,6 +53,7 @@ pub struct TextureSettings {
     pub height: usize,
     pub format: TextureFormat,
     pub filtering: TextureFiltering,
+    pub mipmap: bool,
 }
 
 pub struct Texture {
@@ -69,8 +77,13 @@ impl Texture {
         let tex = unsafe {
             let tex = gl.create_texture().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer color attachment!");
             gl.bind_texture(TEXTURE_2D, Some(tex));
+            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_BASE_LEVEL, 0);
+            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAX_LEVEL, 5);
+            gl.tex_parameter_f32(TEXTURE_2D, TEXTURE_LOD_BIAS, -1.8);
             gl.tex_image_2d(TEXTURE_2D, 0, settings.format.to_gl_internal_format(), settings.width as i32, settings.height as i32, 0, settings.format.to_gl_format(), UNSIGNED_BYTE, pixels);
-            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, settings.filtering.to_gl());
+            if settings.mipmap { gl.generate_texture_mipmap(tex); }
+            // Regular filtering
+            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, if settings.mipmap { settings.filtering.to_gl_mipmap() } else { settings.filtering.to_gl() });
             gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAG_FILTER, settings.filtering.to_gl());
             gl.bind_texture(TEXTURE_2D, None);
             tex
