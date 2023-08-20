@@ -25,7 +25,6 @@ pub mod windows_perf_flags {
 }
 
 pub trait App {
-    fn event(&mut self, _input: &prelude::Input) {}
     fn update(&mut self, _ctx: &Context) {}
     fn render(&mut self, _ctx: &Context) {}
     fn on_resize(&mut self, _size: (i32, i32)) {}
@@ -71,7 +70,8 @@ impl<A: App> State<A> {
         let video_modes = window.lock().unwrap().current_monitor().expect("No monitor detected!").video_modes().collect();
 
         renderer.start_frame().expect("Failed to create a frame!");
-        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &video_modes);
+        let tmp_input = WinitInputHelper::new();
+        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &tmp_input, &video_modes);
         let app = f(&mut ctx);
         drop(ctx);
         renderer.end_frame().expect("Failed to end a frame!");
@@ -93,12 +93,12 @@ impl<A: App> State<A> {
         self.renderer.gl_make_not_current();
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, input: &WinitInputHelper) {
         puffin::profile_function!();
         if !self.renderer.is_context_current {
             self.renderer.gl_make_current();
         }
-        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, &self.video_modes);
+        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, input, &self.video_modes);
         self.app.update(&ctx);
         drop(ctx);
         if self.renderer.is_context_current {
@@ -106,10 +106,10 @@ impl<A: App> State<A> {
         }
     }
 
-    fn render(&mut self) -> Result<(), rendering::RenderError> {
+    fn render(&mut self, input: &WinitInputHelper) -> Result<(), rendering::RenderError> {
         puffin::profile_function!();
         self.renderer.start_frame()?;
-        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, &self.video_modes);
+        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, input, &self.video_modes);
         self.app.render(&ctx);
         unsafe {
             self.renderer.gl.disable(glow::FRAMEBUFFER_SRGB);
@@ -125,19 +125,25 @@ pub struct Context<'c> {
     renderer: &'c rendering::Renderer,
     event_loop: &'c EventLoopProxy<EngineEvent>,
     fox_ui: &'c foxtail_ui::FoxUi,
+    input: &'c winit_input_helper::WinitInputHelper,
 
     video_modes: &'c Vec<VideoMode>,
 }
 
 impl<'c> Context<'c> {
-    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c foxtail_ui::FoxUi, video_modes: &'c Vec<VideoMode>) -> Self {
+    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c foxtail_ui::FoxUi, input: &'c winit_input_helper::WinitInputHelper, video_modes: &'c Vec<VideoMode>) -> Self {
         Self {
-            renderer: renderer,
-            event_loop: event_loop,
-            fox_ui: fox_ui,
+            renderer,
+            event_loop,
+            fox_ui,
+            input,
 
-            video_modes: video_modes,
+            video_modes,
         }
+    }
+
+    pub fn input(&self) -> &WinitInputHelper {
+        self.input
     }
 
     pub fn video_modes(&self) -> &Vec<VideoMode> {
@@ -251,13 +257,12 @@ pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
         }
         if !event_consumed {
             if input.update(&event) {
-                if input.quit() { *control_flow = ControlFlow::Exit; }
+                if input.close_requested() || input.destroyed() { *control_flow = ControlFlow::Exit; }
                 if let Some(size) = input.window_resized() {
                     state.resize(size);
                 }
-                state.app.event(&input);
-                state.update();
-                if let Err(e) = state.render() {
+                state.update(&input);
+                if let Err(e) = state.render(&input) {
                     error!("Render error occured!");
                     panic!("{:?}", e);
                 }
