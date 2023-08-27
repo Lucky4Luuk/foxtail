@@ -2,6 +2,7 @@
 
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
+use std::collections::HashSet;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopBuilder},
@@ -9,6 +10,7 @@ use winit::{
     monitor::VideoMode,
 };
 use winit_input_helper::WinitInputHelper;
+use gilrs::{Gilrs, Button, Event as GilEvent};
 use glow::HasContext;
 
 pub use glow;
@@ -71,7 +73,8 @@ impl<A: App> State<A> {
 
         renderer.start_frame().expect("Failed to create a frame!");
         let tmp_input = WinitInputHelper::new();
-        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &tmp_input, &video_modes);
+        let tmp_gil = Gilrs::new().unwrap();
+        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &tmp_input, &tmp_gil, &video_modes);
         let app = f(&mut ctx);
         drop(ctx);
         renderer.end_frame().expect("Failed to end a frame!");
@@ -93,12 +96,12 @@ impl<A: App> State<A> {
         self.renderer.gl_make_not_current();
     }
 
-    fn update(&mut self, input: &WinitInputHelper) {
+    fn update(&mut self, input: &WinitInputHelper, gil_input: &Gilrs) {
         puffin::profile_function!();
         if !self.renderer.is_context_current {
             self.renderer.gl_make_current();
         }
-        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, input, &self.video_modes);
+        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, input, gil_input, &self.video_modes);
         self.app.update(&ctx);
         drop(ctx);
         if self.renderer.is_context_current {
@@ -106,10 +109,10 @@ impl<A: App> State<A> {
         }
     }
 
-    fn render(&mut self, input: &WinitInputHelper) -> Result<(), rendering::RenderError> {
+    fn render(&mut self, input: &WinitInputHelper, gil_input: &Gilrs) -> Result<(), rendering::RenderError> {
         puffin::profile_function!();
         self.renderer.start_frame()?;
-        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, input, &self.video_modes);
+        let ctx = Context::new(&self.renderer, &self.event_loop, &self.fox_ui, input, gil_input, &self.video_modes);
         self.app.render(&ctx);
         unsafe {
             self.renderer.gl.disable(glow::FRAMEBUFFER_SRGB);
@@ -125,18 +128,29 @@ pub struct Context<'c> {
     renderer: &'c rendering::Renderer,
     event_loop: &'c EventLoopProxy<EngineEvent>,
     fox_ui: &'c foxtail_ui::FoxUi,
+
     input: &'c winit_input_helper::WinitInputHelper,
+    gil_input: &'c Gilrs,
 
     video_modes: &'c Vec<VideoMode>,
 }
 
 impl<'c> Context<'c> {
-    fn new(renderer: &'c rendering::Renderer, event_loop: &'c EventLoopProxy<EngineEvent>, fox_ui: &'c foxtail_ui::FoxUi, input: &'c winit_input_helper::WinitInputHelper, video_modes: &'c Vec<VideoMode>) -> Self {
+    fn new(
+        renderer: &'c rendering::Renderer,
+        event_loop: &'c EventLoopProxy<EngineEvent>,
+        fox_ui: &'c foxtail_ui::FoxUi,
+        input: &'c winit_input_helper::WinitInputHelper,
+        gil_input: &'c Gilrs,
+        video_modes: &'c Vec<VideoMode>
+    ) -> Self {
         Self {
             renderer,
             event_loop,
             fox_ui,
+
             input,
+            gil_input,
 
             video_modes,
         }
@@ -144,6 +158,10 @@ impl<'c> Context<'c> {
 
     pub fn input(&self) -> &WinitInputHelper {
         self.input
+    }
+
+    pub fn gamepads(&self) -> gilrs::ConnectedGamepadsIterator {
+        self.gil_input.gamepads()
     }
 
     pub fn video_modes(&self) -> &Vec<VideoMode> {
@@ -218,7 +236,8 @@ impl<'c> Deref for Context<'c> {
 }
 
 pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
-    pretty_env_logger::formatted_timed_builder().filter_level(log::LevelFilter::max()).init();
+    // pretty_env_logger::formatted_timed_builder().filter_level(log::LevelFilter::max()).init();
+    pretty_env_logger::formatted_timed_builder().filter_level(log::LevelFilter::Debug).init();
 
     let event_loop = EventLoopBuilder::<EngineEvent>::with_user_event().build();
     let window = Arc::new(Mutex::new(WindowBuilder::new().with_inner_size(winit::dpi::LogicalSize::<u32>::new(1280u32, 720u32)).build(&event_loop).unwrap()));
@@ -226,9 +245,21 @@ pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
     let mut state = State::new(window.clone(), &event_loop, f);
 
     let mut input = WinitInputHelper::new();
+    let mut gil_input = Gilrs::new().unwrap();
+
+    let mut controllers = HashSet::new();
 
     event_loop.run(move |event, _, control_flow| {
         puffin::GlobalProfiler::lock().new_frame();
+
+        while let Some(GilEvent { id, event, .. }) = gil_input.next_event() {
+            match event {
+                gilrs::EventType::Connected => { controllers.insert(id); },
+                gilrs::EventType::Disconnected => { controllers.remove(&id); },
+                _ => {},
+            }
+        }
+
         let mut event_consumed = false;
         if let Event::WindowEvent { ref event, .. } = event {
             if state.fox_ui.event(&event) {
@@ -261,8 +292,8 @@ pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
                 if let Some(size) = input.window_resized() {
                     state.resize(size);
                 }
-                state.update(&input);
-                if let Err(e) = state.render(&input) {
+                state.update(&input, &gil_input);
+                if let Err(e) = state.render(&input, &gil_input) {
                     error!("Render error occured!");
                     panic!("{:?}", e);
                 }

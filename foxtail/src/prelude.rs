@@ -16,3 +16,11 @@ pub use winit::monitor::VideoMode;
 
 // Re-export
 pub use glow::HasContext;
+pub use gilrs::{
+    Axis,
+    Button,
+    ConnectedGamepadsIterator,
+    Gamepad,
+    PowerInfo,
+    ev::Code,
+};
