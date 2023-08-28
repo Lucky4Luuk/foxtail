@@ -2,7 +2,6 @@
 
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
-use std::collections::HashSet;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopBuilder},
@@ -10,7 +9,7 @@ use winit::{
     monitor::VideoMode,
 };
 use winit_input_helper::WinitInputHelper;
-use gilrs::{Gilrs, Button, Event as GilEvent};
+use gilrs::{Gilrs, Event as GilEvent};
 use glow::HasContext;
 
 pub use glow;
@@ -63,7 +62,13 @@ struct State<A: App> {
 }
 
 impl<A: App> State<A> {
-    fn new<F: Fn(&Context) -> A>(window: Arc<Mutex<Window>>, event_loop: &EventLoop<EngineEvent>, f: F) -> Self {
+    fn new<F: Fn(&Context) -> A>(
+        window: Arc<Mutex<Window>>,
+        event_loop: &EventLoop<EngineEvent>,
+        f: F,
+        input: &WinitInputHelper,
+        gil_input: &Gilrs,
+    ) -> Self {
         let mut renderer = rendering::Renderer::new(&window);
 
         let mut fox_ui = foxtail_ui::FoxUi::new(event_loop, renderer.gl.clone(), window.clone());
@@ -72,9 +77,7 @@ impl<A: App> State<A> {
         let video_modes = window.lock().unwrap().current_monitor().expect("No monitor detected!").video_modes().collect();
 
         renderer.start_frame().expect("Failed to create a frame!");
-        let tmp_input = WinitInputHelper::new();
-        let tmp_gil = Gilrs::new().unwrap();
-        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &tmp_input, &tmp_gil, &video_modes);
+        let mut ctx = Context::new(&renderer, &event_loop_proxy, &mut fox_ui, &input, &gil_input, &video_modes);
         let app = f(&mut ctx);
         drop(ctx);
         renderer.end_frame().expect("Failed to end a frame!");
@@ -242,20 +245,16 @@ pub fn run<A: App + 'static, F: Fn(&Context) -> A>(f: F) {
     let event_loop = EventLoopBuilder::<EngineEvent>::with_user_event().build();
     let window = Arc::new(Mutex::new(WindowBuilder::new().with_inner_size(winit::dpi::LogicalSize::<u32>::new(1280u32, 720u32)).build(&event_loop).unwrap()));
 
-    let mut state = State::new(window.clone(), &event_loop, f);
-
     let mut input = WinitInputHelper::new();
     let mut gil_input = Gilrs::new().unwrap();
 
-    let mut controllers = HashSet::new();
+    let mut state = State::new(window.clone(), &event_loop, f, &input, &gil_input);
 
     event_loop.run(move |event, _, control_flow| {
         puffin::GlobalProfiler::lock().new_frame();
 
         while let Some(GilEvent { id, event, .. }) = gil_input.next_event() {
             match event {
-                gilrs::EventType::Connected => { controllers.insert(id); },
-                gilrs::EventType::Disconnected => { controllers.remove(&id); },
                 _ => {},
             }
         }
