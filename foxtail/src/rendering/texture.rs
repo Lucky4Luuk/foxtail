@@ -101,8 +101,9 @@ impl Texture {
         self.size
     }
 
-    fn bind_tex(&self) {
+    fn bind_tex(&self, location: u32) {
         unsafe {
+            self.gl.active_texture(location);
             self.gl.bind_texture(TEXTURE_2D, Some(self.tex));
         }
     }
@@ -114,11 +115,11 @@ impl Texture {
     }
 
     /// Runs a closure while the framebuffer is bound
-    pub fn while_bound<F: FnOnce() -> Result<(), super::RenderError>>(&self, f: F) -> Result<(), super::RenderError> {
+    pub fn while_bound<F: FnOnce() -> Result<(), super::RenderError>>(&self, location: u32, f: F) -> Result<(), super::RenderError> {
         if self.shader_bound.load(Ordering::Acquire) == false {
             panic!("No shader bound, but you are trying to bind a texture!");
         }
-        self.bind_tex();
+        self.bind_tex(location);
         f()?;
         self.unbind_tex();
         Ok(())
