@@ -16,12 +16,12 @@ pub struct Framebuffer {
 impl super::Drawable for Framebuffer {
     fn draw(&self) -> Result<(), super::RenderError> {
         if self.shader_bound.load(Ordering::Acquire) {
-            self.bind_tex();
+            self.bind_tex(0);
             self.mesh.draw()?;
             self.unbind_tex();
         } else {
             self.default_fb_shader.while_bound(|_| {
-                self.bind_tex();
+                self.bind_tex(0);
                 self.mesh.draw()?;
                 self.unbind_tex();
                 Ok(())
