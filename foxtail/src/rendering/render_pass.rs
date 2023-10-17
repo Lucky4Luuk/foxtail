@@ -112,13 +112,13 @@ impl Framebuffer {
         self.size
     }
 
-    fn bind_tex(&self) {
+    pub fn bind_tex(&self) {
         unsafe {
             self.gl.bind_texture(TEXTURE_2D, Some(self.tex));
         }
     }
 
-    fn unbind_tex(&self) {
+    pub fn unbind_tex(&self) {
         unsafe {
             self.gl.bind_texture(TEXTURE_2D, None);
         }
