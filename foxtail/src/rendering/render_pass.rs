@@ -114,7 +114,7 @@ impl Framebuffer {
 
     pub fn bind_tex(&self, location: u32) {
         unsafe {
-            self.gl.active_texture(location);
+            self.gl.active_texture(glow::TEXTURE0 + location);
             self.gl.bind_texture(TEXTURE_2D, Some(self.tex));
         }
     }
