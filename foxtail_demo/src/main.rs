@@ -16,7 +16,7 @@ impl Demo {
         trace!("Demo created!");
         let mesh = Mesh::quad(&ctx);
         let shader = Shader::new(&ctx, (VS, "../shaders/vs.glsl"), (FS, "../shaders/fs.glsl"));
-        let fb = Framebuffer::new(&ctx);
+        let fb = Framebuffer::new(&ctx, 1);
         Self {
             mesh: mesh,
             shader: shader,
