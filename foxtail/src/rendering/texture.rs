@@ -58,7 +58,7 @@ pub struct TextureSettings {
 
 pub struct Texture {
     tex: glow::Texture,
-    size: (usize, usize),
+    settings: TextureSettings,
     gl: Arc<Context>,
     shader_bound: Arc<AtomicBool>,
 }
@@ -74,31 +74,25 @@ impl Drop for Texture {
 impl Texture {
     pub fn new(renderer: &super::Renderer, settings: TextureSettings, pixels: Option<&[u8]>) -> Self {
         let gl = renderer.gl.clone();
-        let tex = unsafe {
-            let tex = gl.create_texture().map_err(|e| error!("{}", e)).expect("Failed to create texture!");
-            gl.bind_texture(TEXTURE_2D, Some(tex));
-            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_BASE_LEVEL, 0);
-            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAX_LEVEL, 5);
-            gl.tex_parameter_f32(TEXTURE_2D, TEXTURE_LOD_BIAS, -1.8);
-            gl.tex_image_2d(TEXTURE_2D, 0, settings.format.to_gl_internal_format(), settings.width as i32, settings.height as i32, 0, settings.format.to_gl_format(), UNSIGNED_BYTE, pixels);
-            if settings.mipmap { gl.generate_texture_mipmap(tex); }
-            // Regular filtering
-            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, if settings.mipmap { settings.filtering.to_gl_mipmap() } else { settings.filtering.to_gl() });
-            gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAG_FILTER, settings.filtering.to_gl());
-            gl.bind_texture(TEXTURE_2D, None);
-            tex
-        };
+        let tex = new_tex(gl.clone(), &settings, pixels);
         super::gl_error(&gl);
         Self {
             tex,
-            size: (settings.width, settings.height),
+            settings,
             gl,
             shader_bound: renderer.shader_bound.clone(),
         }
     }
 
     pub fn size(&self) -> (usize, usize) {
-        self.size
+        (self.settings.width, self.settings.height)
+    }
+
+    pub fn resize(&mut self, size: (usize, usize), pixels: Option<&[u8]>) {
+        self.settings.width = size.0;
+        self.settings.height = size.1;
+        let tex = new_tex(self.gl.clone(), &self.settings, pixels);
+        self.tex = tex;
     }
 
     fn bind_tex(&self, location: u32) {
@@ -124,4 +118,22 @@ impl Texture {
         self.unbind_tex();
         Ok(())
     }
+}
+
+fn new_tex(gl: Arc<Context>, settings: &TextureSettings, pixels: Option<&[u8]>) -> glow::Texture {
+    let tex = unsafe {
+        let tex = gl.create_texture().map_err(|e| error!("{}", e)).expect("Failed to create texture!");
+        gl.bind_texture(TEXTURE_2D, Some(tex));
+        gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_BASE_LEVEL, 0);
+        gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAX_LEVEL, 5);
+        gl.tex_parameter_f32(TEXTURE_2D, TEXTURE_LOD_BIAS, -1.8);
+        gl.tex_image_2d(TEXTURE_2D, 0, settings.format.to_gl_internal_format(), settings.width as i32, settings.height as i32, 0, settings.format.to_gl_format(), UNSIGNED_BYTE, pixels);
+        if settings.mipmap { gl.generate_texture_mipmap(tex); }
+        // Regular filtering
+        gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, if settings.mipmap { settings.filtering.to_gl_mipmap() } else { settings.filtering.to_gl() });
+        gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAG_FILTER, settings.filtering.to_gl());
+        gl.bind_texture(TEXTURE_2D, None);
+        tex
+    };
+    tex
 }
