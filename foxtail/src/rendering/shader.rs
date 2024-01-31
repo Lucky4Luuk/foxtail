@@ -275,12 +275,22 @@ impl ComputeShader {
         }
     }
 
+    /// Runs a closure while the shader is bound
+    pub fn while_bound<F: FnOnce(UniformInterface) -> Result<(), super::RenderError>>(&self, f: F) -> Result<(), super::RenderError> {
+        self.bind();
+        let uni = UniformInterface {
+            bound_shader: &self.program,
+            gl: self.gl.clone(),
+        };
+        f(uni)?;
+        self.unbind();
+        Ok(())
+    }
+
     /// Dispatches the compute shader
     pub fn dispatch(&self, num_groups: [u32; 3]) {
-        self.bind();
         unsafe {
             self.gl.dispatch_compute(num_groups[0], num_groups[1], num_groups[2]);
         }
-        self.unbind();
     }
 }
