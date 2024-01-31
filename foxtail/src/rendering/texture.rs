@@ -75,7 +75,7 @@ impl Texture {
     pub fn new(renderer: &super::Renderer, settings: TextureSettings, pixels: Option<&[u8]>) -> Self {
         let gl = renderer.gl.clone();
         let tex = unsafe {
-            let tex = gl.create_texture().map_err(|e| error!("{}", e)).expect("Failed to create framebuffer color attachment!");
+            let tex = gl.create_texture().map_err(|e| error!("{}", e)).expect("Failed to create texture!");
             gl.bind_texture(TEXTURE_2D, Some(tex));
             gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_BASE_LEVEL, 0);
             gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAX_LEVEL, 5);
