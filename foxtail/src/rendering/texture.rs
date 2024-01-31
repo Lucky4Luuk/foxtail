@@ -25,6 +25,14 @@ impl TextureFormat {
             _ => unimplemented!(),
         }
     }
+
+    fn to_gl_repr(&self) -> u32 {
+        match self {
+            Self::RGB => FLOAT,
+            Self::RGBA => FLOAT,
+            _ => unimplemented!(),
+        }
+    }
 }
 
 pub enum TextureFiltering {
@@ -75,7 +83,7 @@ impl Texture {
     pub fn new(renderer: &super::Renderer, settings: TextureSettings, pixels: Option<&[u8]>) -> Self {
         let gl = renderer.gl.clone();
         let tex = new_tex(gl.clone(), &settings, pixels);
-        super::gl_error(&gl);
+        super::gl_error(&gl, "texture::new");
         Self {
             tex,
             settings,
@@ -108,7 +116,22 @@ impl Texture {
         }
     }
 
-    /// Runs a closure while the framebuffer is bound
+    pub fn bind_img(&self, location: u32, write: bool, read: bool) {
+        self.bind_tex(location);
+        let access = if write && read { glow::READ_WRITE } else if write { glow::WRITE_ONLY } else { glow::READ_ONLY };
+        unsafe {
+            self.gl.bind_image_texture(location, self.tex, 0, false, 0, access, self.settings.format.to_gl_internal_format() as u32);
+        }
+    }
+
+    pub fn unbind_img(&self, _location: u32) {
+        self.unbind_tex();
+        // unsafe {
+        //     self.gl.bind_image_texture(location, self.tex, 0, false, 0, glow::READ_ONLY, self.settings.format.to_gl_internal_format() as u32);
+        // }
+    }
+
+    /// Runs a closure while the texture is bound
     pub fn while_bound<F: FnOnce() -> Result<(), super::RenderError>>(&self, location: u32, f: F) -> Result<(), super::RenderError> {
         if self.shader_bound.load(Ordering::Acquire) == false {
             panic!("No shader bound, but you are trying to bind a texture!");
@@ -116,6 +139,17 @@ impl Texture {
         self.bind_tex(location);
         f()?;
         self.unbind_tex();
+        Ok(())
+    }
+
+    /// Runs a closure while the texture is bound as an image texture (mainly for compute shaders)
+    pub fn while_bound_img<F: FnOnce() -> Result<(), super::RenderError>>(&self, location: u32, write: bool, read: bool, f: F) -> Result<(), super::RenderError> {
+        if self.shader_bound.load(Ordering::Acquire) == false {
+            panic!("No shader bound, but you are trying to bind a texture!");
+        }
+        self.bind_img(location, write, read);
+        f()?;
+        self.unbind_img(location);
         Ok(())
     }
 }
@@ -127,7 +161,7 @@ fn new_tex(gl: Arc<Context>, settings: &TextureSettings, pixels: Option<&[u8]>) 
         gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_BASE_LEVEL, 0);
         gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAX_LEVEL, 5);
         gl.tex_parameter_f32(TEXTURE_2D, TEXTURE_LOD_BIAS, -1.8);
-        gl.tex_image_2d(TEXTURE_2D, 0, settings.format.to_gl_internal_format(), settings.width as i32, settings.height as i32, 0, settings.format.to_gl_format(), UNSIGNED_BYTE, pixels);
+        gl.tex_image_2d(TEXTURE_2D, 0, settings.format.to_gl_internal_format(), settings.width as i32, settings.height as i32, 0, settings.format.to_gl_format(), settings.format.to_gl_repr(), pixels);
         if settings.mipmap { gl.generate_texture_mipmap(tex); }
         // Regular filtering
         gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, if settings.mipmap { settings.filtering.to_gl_mipmap() } else { settings.filtering.to_gl() });

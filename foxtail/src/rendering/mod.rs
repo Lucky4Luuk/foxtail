@@ -24,11 +24,11 @@ pub trait Drawable {
 const VS:       &'static str = include_str!("shaders/vs.glsl");
 const FB_FS:    &'static str = include_str!("shaders/fb_fs.glsl");
 
-pub(crate) fn gl_error(gl: &Context) {
+pub(crate) fn gl_error(gl: &Context, target: &str) {
     // if cfg!(debug_assertions) {}
     let err = unsafe { gl.get_error() };
     if err == 0 { return; }
-    error!("[{}] {}!", err, match err {
+    error!("[{}:{target}] {}!", err, match err {
         INVALID_ENUM => "Invalid enum",
         INVALID_VALUE => "Invalid value",
         INVALID_OPERATION => "Invalid operation",

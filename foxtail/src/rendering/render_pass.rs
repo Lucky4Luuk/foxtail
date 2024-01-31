@@ -81,7 +81,7 @@ impl Framebuffer {
     pub fn with_resolution(renderer: &super::Renderer, size: (i32, i32), layers: u8) -> Self {
         let gl = renderer.gl.clone();
         let (fbo, tex) = Self::create_fb(gl.clone(), size, layers);
-        super::gl_error(&gl);
+        super::gl_error(&gl, "render_pass::with_resolution");
         Self {
             fbo,
             tex,
@@ -106,7 +106,7 @@ impl Framebuffer {
             }
         }
         let (fbo, tex) = Self::create_fb(self.gl.clone(), size, self.tex.len() as u8);
-        super::gl_error(&self.gl);
+        super::gl_error(&self.gl, "render_pass::resize");
         self.fbo = fbo;
         self.tex = tex;
         self.size = (size.0 as usize, size.1 as usize);
