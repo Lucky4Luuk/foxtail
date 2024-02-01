@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use glow::*;
 
+#[derive(Clone)]
 pub struct FixedSizeBuffer<T> {
     buf: NativeBuffer,
     size: usize,
