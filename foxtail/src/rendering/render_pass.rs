@@ -98,6 +98,17 @@ impl Framebuffer {
         Self::with_resolution(renderer, (size.width as i32, size.height as i32), layers)
     }
 
+    pub fn read_pixels(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::new();
+        buf.resize(self.size.0 * self.size.1 * 4, 0);
+        self.bind_tex(0, 0);
+        unsafe {
+            self.gl.get_tex_image(TEXTURE_2D, 0, RGBA, UNSIGNED_BYTE, PixelPackData::Slice(&mut buf[..]));
+        }
+        self.unbind_tex();
+        buf
+    }
+
     pub fn resize(&mut self, size: (i32, i32)) {
         unsafe {
             self.gl.delete_framebuffer(self.fbo);
